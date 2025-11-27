@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.27] – 2025-11-27
+
+### Changed
+
+- Prompt UI adds a visible separator between the two service columns; Textual port column clarified (still grouped and ordered).
+
 ## [0.1.26] – 2025-11-27
 
 ### Changed

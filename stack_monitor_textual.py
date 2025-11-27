@@ -533,13 +533,16 @@ class MonitorApp(App):
           )
           continue
         state_style, health_style, err_style, port_style = self._row_styles(r["state"], r["health"], r["errors"], r["ports"])
+        port_display = r["ports"]
+        if port_display.startswith("OK(") or port_display.startswith("FAIL") or port_display.startswith("PART"):
+          port_display = f"{port_display}"
         tbl.add_row(
           Text(r["cid"]),
           Text(r["service"]),
           Text(r["state"], style=state_style),
           Text(r["health"], style=health_style),
           Text(r["errors"], style=err_style),
-          Text(r["ports"], style=port_style),
+          Text(port_display, style=port_style),
         )
     self.last_refresh = now
 

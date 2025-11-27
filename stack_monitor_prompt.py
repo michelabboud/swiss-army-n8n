@@ -494,15 +494,15 @@ def render_table_formatted(rows) -> FormattedText:
   for i in range(max_len):
     if i == 0:
       tokens.extend(header)
-      tokens.append(("", "  "))
+      tokens.append(("", " | "))
       tokens.extend(header)
       tokens.append(("", "\n"))
       tokens.extend(header_sep)
-      tokens.append(("", "  "))
+      tokens.append(("", " | "))
       tokens.extend(header_sep)
       tokens.append(("", "\n"))
     tokens.extend(left_rows[i])
-    tokens.append(("", "  "))
+    tokens.append(("", " | "))
     tokens.extend(right_rows[i])
     if i != max_len - 1:
       tokens.append(("", "\n"))
