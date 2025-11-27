@@ -1,0 +1,437 @@
+version: "3.9"
+
+services:
+  # =========================
+  # Core orchestrator
+  # =========================
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    profiles: ["core"]
+    ports:
+      - "5678:5678"
+    environment:
+      # DB
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=n8n
+      - DB_POSTGRESDB_PASSWORD=n8n
+
+      # Basic auth for UI (dev only)
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin
+
+      # Encrypt stored credentials
+      - N8N_ENCRYPTION_KEY=please-change-me-to-a-long-random-string-123
+
+      # General
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - GENERIC_TIMEZONE=Asia/Jerusalem
+      - TZ=Asia/Jerusalem
+      - N8N_LOG_LEVEL=info
+
+      # Disable telemetry / banners
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_HIRING_BANNER_ENABLED=false
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - n8n_data:/home/node/.n8n
+    networks:
+      - core
+
+  # =========================
+  # Databases: Postgres, Mongo, Redis
+  # =========================
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    profiles: ["core"]
+    environment:
+      - POSTGRES_DB=n8n
+      - POSTGRES_USER=n8n
+      - POSTGRES_PASSWORD=n8n
+      - TZ=Asia/Jerusalem
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - core
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    profiles: ["core"]
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - core
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    profiles: ["core"]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - core
+
+  # =========================
+  # Queue: Kafka (with ZooKeeper)
+  # =========================
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    restart: unless-stopped
+    profiles: ["queue"]
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    networks:
+      - core
+
+  kafka:
+    image: bitnami/kafka:latest
+    restart: unless-stopped
+    profiles: ["queue"]
+    depends_on:
+      - zookeeper
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    networks:
+      - core
+
+  # =========================
+  # Email / notifications: MailHog, Gotify, ntfy
+  # =========================
+  mailhog:
+    image: mailhog/mailhog:latest
+    restart: unless-stopped
+    profiles: ["email"]
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - core
+
+  gotify:
+    image: gotify/server:latest
+    restart: unless-stopped
+    profiles: ["email"]
+    ports:
+      - "8083:80"
+    environment:
+      - GOTIFY_DEFAULTUSER_PASS=changeme
+    volumes:
+      - gotify_data:/app/data
+    networks:
+      - core
+
+  ntfy:
+    image: binwiederhier/ntfy:v2.7.0
+    restart: unless-stopped
+    profiles: ["email"]
+    command: ["serve"]
+    environment:
+      - NTFY_BASE_URL=http://localhost:8090
+    ports:
+      - "8090:80"
+    volumes:
+      - ntfy_data:/var/lib/ntfy
+    networks:
+      - core
+
+  # =========================
+  # File & Object Storage: MinIO, SFTP
+  # =========================
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    profiles: ["storage"]
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=minio123
+    ports:
+      - "9000:9000"  # S3 API
+      - "9001:9001"  # Console
+    volumes:
+      - minio_data:/data
+    networks:
+      - core
+
+  sftp:
+    image: atmoz/sftp:latest
+    restart: unless-stopped
+    profiles: ["storage"]
+    command: "dev:devpass:1001"
+    volumes:
+      - ./data/sftp/dev:/home/dev
+    ports:
+      - "2222:22"
+    networks:
+      - core
+
+  # =========================
+  # Image Processing: Imagor, imgproxy, Thumbor, rembg
+  # =========================
+  imagor:
+    image: shumc/imagor:latest
+    restart: unless-stopped
+    profiles: ["images"]
+    environment:
+      - PORT=8000
+      - IMAGOR_UNSAFE=1
+    ports:
+      - "8001:8000"
+    networks:
+      - core
+
+  imgproxy:
+    image: darthsim/imgproxy:latest
+    restart: unless-stopped
+    profiles: ["images"]
+    ports:
+      - "8002:8080"
+    networks:
+      - core
+
+  thumbor:
+    image: apsl/thumbor:latest
+    restart: unless-stopped
+    profiles: ["images"]
+    ports:
+      - "8003:8000"
+    networks:
+      - core
+
+  rembg:
+    image: danielgatis/rembg:latest
+    restart: unless-stopped
+    profiles: ["images"]
+    command: ["s", "--host", "0.0.0.0", "--port", "7000"]
+    ports:
+      - "8004:7000"
+    networks:
+      - core
+
+  # =========================
+  # Video / Audio: ffmpeg wrapper, Tdarr, Whisper wrapper
+  # =========================
+  ffmpeg-api:
+    build: ./ffmpeg-api
+    restart: unless-stopped
+    profiles: ["video"]
+    ports:
+      - "9002:8080"
+    networks:
+      - core
+
+  tdarr:
+    image: ghcr.io/haveagitgat/tdarr:latest
+    restart: unless-stopped
+    profiles: ["video"]
+    environment:
+      - TZ=Asia/Jerusalem
+      - PUID=1000
+      - PGID=1000
+      - serverPort=8266
+      - webUIPort=8265
+    ports:
+      - "8265:8265"  # UI
+      - "8266:8266"  # Server
+    volumes:
+      - tdarr_server:/app/server
+      - tdarr_configs:/app/configs
+      - tdarr_logs:/app/logs
+      - ./data/tdarr/media:/media
+      - ./data/tdarr/temp:/temp
+    networks:
+      - core
+
+  whisper-api:
+    build: ./whisper-api
+    restart: unless-stopped
+    profiles: ["video"]
+    ports:
+      - "9003:8080"
+    networks:
+      - core
+
+  # =========================
+  # Search / Analytics: Elasticsearch, Meilisearch, ClickHouse
+  # =========================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    restart: unless-stopped
+    profiles: ["search"]
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - core
+
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    restart: unless-stopped
+    profiles: ["search"]
+    environment:
+      - MEILI_NO_ANALYTICS=true
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+    networks:
+      - core
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    restart: unless-stopped
+    profiles: ["search"]
+    ports:
+      - "8123:8123"  # HTTP only; native port 9000 stays internal
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    networks:
+      - core
+
+  # =========================
+  # Auth / Identity: Keycloak
+  # =========================
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    restart: unless-stopped
+    profiles: ["auth"]
+    command: ["start-dev"]
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    ports:
+      - "8082:8080"
+    networks:
+      - core
+
+  # =========================
+  # Monitoring / Observability: Prometheus, Grafana, Loki, Uptime Kuma
+  # =========================
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    # TODO: mount prometheus.yml and add scrape targets
+    networks:
+      - core
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - core
+
+  loki:
+    image: grafana/loki:latest
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"
+    networks:
+      - core
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    ports:
+      - "3001:3001"
+    volumes:
+      - uptime_kuma_data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - core
+
+  # =========================
+  # AI / LLM helpers: Ollama, Qdrant, Weaviate
+  # =========================
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    profiles: ["ai"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - core
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    profiles: ["ai"]
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - core
+
+  weaviate:
+    image: semitechnologies/weaviate:latest
+    restart: unless-stopped
+    profiles: ["ai"]
+    environment:
+      - QUERY_DEFAULTS_LIMIT=25
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - DEFAULT_VECTORIZER_MODULE=none
+      - CLUSTER_HOSTNAME=node1
+    ports:
+      - "8081:8080"
+      - "50051:50051"
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    networks:
+      - core
+
+networks:
+  core:
+
+volumes:
+  n8n_data:
+  postgres_data:
+  mongo_data:
+  redis_data:
+  minio_data:
+  gotify_data:
+  ntfy_data:
+  es_data:
+  meili_data:
+  clickhouse_data:
+  grafana_data:
+  tdarr_server:
+  tdarr_configs:
+  tdarr_logs:
+  uptime_kuma_data:
+  ollama_data:
+  qdrant_data:
+  weaviate_data:
+
