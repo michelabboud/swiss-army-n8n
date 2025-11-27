@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.29",
+    "version": "0.1.30",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -15,10 +15,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.29",
+      "version": "0.1.30",
       "date": "2025-11-27",
-      "title": "Fix basic header inside Python block",
-      "summary": "Basic monitor header now wraps profiles/services inside the Python monitor (no bash leakage), with separator retained."
+      "title": "Pad basic monitor columns",
+      "summary": "Basic monitor pads group headers/rows to keep two-column alignment with separators; headers stay wrapped."
     }
   }
 }

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.30] – 2025-11-27
+
+### Fixed
+
+- Basic monitor pads group and row lines to a fixed width before two-column splitting, so columns stay aligned with the separator.
+
 ## [0.1.29] – 2025-11-27
 
 ### Fixed

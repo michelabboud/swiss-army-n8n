@@ -521,6 +521,8 @@ def render(rows, header_lines, tty):
       f"{pad_field(r['errors_disp'], err_w)}"
       f"{pad_field(r['ports_disp'], port_w)}"
     )
+  col_width = len(header)
+  lines = [pad_field(line, col_width) for line in lines]
   mid = (len(lines) + 1) // 2
   left = lines[:mid]
   right = lines[mid:]
@@ -528,7 +530,7 @@ def render(rows, header_lines, tty):
   left += [""] * (max_len - len(left))
   right += [""] * (max_len - len(right))
   for l, r in zip(left, right):
-    print(f"{l} | {r}")
+    print(f"{pad_field(l, col_width)} | {pad_field(r, col_width)}")
   sys.stdout.flush()
 
 def build_ports_map(cfg):
