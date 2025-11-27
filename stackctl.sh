@@ -150,6 +150,7 @@ Target selection:
 Global options:
   -f, --file FILE         Compose file (default: ${COMPOSE_FILE_DEFAULT})
   -p, --project-name NAME Project name (default: ${PROJECT_NAME_DEFAULT})
+  --metadata FILE         Metadata file (default: ${METADATA_FILE_DEFAULT}, env: STACKCTL_METADATA_FILE)
   --restart-policy MODE   Override restart policy: inherit|auto|manual|always|on-failure
                           (env: STACKCTL_RESTART_POLICY; default from metadata compose.default_restart_policy or STACKCTL_DEFAULT_RESTART_POLICY)
   --version               Show stack version (from metadata.json)
@@ -671,6 +672,10 @@ cmd_endpoints() {
 CMD=""
 
 # Load metadata before parsing args so defaults reflect metadata.json
+if [[ -n "${STACKCTL_METADATA_FILE:-}" ]]; then
+  METADATA_FILE="$STACKCTL_METADATA_FILE"
+fi
+
 load_metadata
 
 if [[ -n "${STACKCTL_DEFAULT_RESTART_POLICY:-}" ]]; then
@@ -727,6 +732,12 @@ while [[ $# -gt 0 ]]; do
       shift
       [[ $# -gt 0 ]] || error "--project-name requires value"
       PROJECT_NAME="$1"
+      shift
+      ;;
+    --metadata)
+      shift
+      [[ $# -gt 0 ]] || error "--metadata requires value"
+      METADATA_FILE="$1"
       shift
       ;;
     --restart-policy)

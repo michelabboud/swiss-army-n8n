@@ -50,3 +50,21 @@ mkdir -p data/sftp/dev data/tdarr/media data/tdarr/temp
     - Uptime Kuma → http://localhost:3001
     - Grafana → http://localhost:3000
 ```
+
+## Reusing the control script in other Compose projects
+
+The script is generic: drop `stackctl.sh` into another repo and point it at your compose file and metadata.
+
+- Configure defaults via metadata (default `metadata.json`):
+  - `compose.file`
+  - `compose.project_name_default`
+  - `compose.default_restart_policy` (`inherit|manual|auto|always|on-failure`)
+  - `stack.name`, `stack.slug`, `stack.version` (display only)
+- Override via environment:
+  - `STACKCTL_METADATA_FILE` to point to a different metadata file
+  - `STACKCTL_DEFAULT_RESTART_POLICY` to set the baseline restart policy
+  - `STACKCTL_RESTART_POLICY` (or `--restart-policy`) to override per run/target
+  - `COMPOSE_FILE_DEFAULT`, `PROJECT_NAME_DEFAULT` if you skip metadata
+- Run with flags instead of metadata if you prefer:
+  - `./stackctl.sh --file my-compose.yml --project-name myproj start --profile core`
+  - `./stackctl.sh --metadata mymeta.json start --restart-policy on-failure`
