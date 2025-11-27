@@ -17,6 +17,8 @@ PROBE_PORTS="${STACK_MON_PROBE_PORTS:-auto}"
 UI_MODE="${STACK_MON_UI:-auto}"
 VENV_DIR="${STACK_MON_VENV:-.venv_stack_monitor}"
 PYTHON_BIN="${STACK_MON_PYTHON:-}"
+REQ_TEXTUAL="${STACK_MON_REQ_TEXTUAL:-requirements-textual.txt}"
+REQ_PROMPT="${STACK_MON_REQ_PROMPT:-requirements-prompt.txt}"
 
 usage() {
   cat <<EOF
@@ -50,6 +52,8 @@ Env defaults (also read by the embedded monitor):
   STACK_MON_UI                 textual|basic|auto
   STACK_MON_VENV               Virtualenv path for textual (default: .venv_stack_monitor)
   STACK_MON_PYTHON             Python interpreter to use (optional)
+  STACK_MON_REQ_TEXTUAL        Requirements file for textual install (default: requirements-textual.txt)
+  STACK_MON_REQ_PROMPT         Requirements file for prompt_toolkit install (default: requirements-prompt.txt)
 EOF
 }
 
@@ -103,10 +107,19 @@ install_textual() {
     printf '[stack-monitor][ERROR] pip not found in venv at %s.\n' "$venv" >&2
     exit 1
   fi
-  "$pip_bin" install --upgrade pip textual || {
-    printf '[stack-monitor][ERROR] Failed to install textual into %s.\n' "$venv" >&2
-    exit 1
-  }
+  local req="${REQ_TEXTUAL}"
+  printf '[stack-monitor] Installing textual (%s) into %s...\n' "$req" "$venv"
+  if [[ -f "$req" ]]; then
+    "$pip_bin" install --upgrade pip && "$pip_bin" install -r "$req" || {
+      printf '[stack-monitor][ERROR] Failed to install textual from %s into %s.\n' "$req" "$venv" >&2
+      exit 1
+    }
+  else
+    "$pip_bin" install --upgrade pip textual || {
+      printf '[stack-monitor][ERROR] Failed to install textual into %s.\n' "$venv" >&2
+      exit 1
+    }
+  fi
   printf '[stack-monitor] textual installed successfully into %s.\n' "$venv"
   exit 0
 }
@@ -138,10 +151,19 @@ install_prompt() {
     printf '[stack-monitor][ERROR] pip not found in venv at %s.\n' "$venv" >&2
     exit 1
   fi
-  "$pip_bin" install --upgrade pip prompt_toolkit || {
-    printf '[stack-monitor][ERROR] Failed to install prompt_toolkit into %s.\n' "$venv" >&2
-    exit 1
-  }
+  local req="${REQ_PROMPT}"
+  printf '[stack-monitor] Installing prompt_toolkit (%s) into %s...\n' "$req" "$venv"
+  if [[ -f "$req" ]]; then
+    "$pip_bin" install --upgrade pip && "$pip_bin" install -r "$req" || {
+      printf '[stack-monitor][ERROR] Failed to install prompt_toolkit from %s into %s.\n' "$req" "$venv" >&2
+      exit 1
+    }
+  else
+    "$pip_bin" install --upgrade pip prompt_toolkit || {
+      printf '[stack-monitor][ERROR] Failed to install prompt_toolkit into %s.\n' "$venv" >&2
+      exit 1
+    }
+  fi
   printf '[stack-monitor] prompt_toolkit installed successfully into %s.\n' "$venv"
   exit 0
 }

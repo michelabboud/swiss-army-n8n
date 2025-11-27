@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.16",
+    "version": "0.1.17",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -15,10 +15,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.16",
+      "version": "0.1.17",
       "date": "2025-11-27",
-      "title": "Skip probes when service is down",
-      "summary": "Monitors no longer probe ports or logs when a service is down; state-only is shown for stopped containers."
+      "title": "Split TUI requirements, shared venv installs",
+      "summary": "Separate requirements files for Textual and prompt_toolkit; installers use the shared venv and respect the requirement files."
     }
   }
 }

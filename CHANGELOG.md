@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.17] – 2025-11-27
+
+### Added
+
+- Separate requirements files: `requirements-textual.txt` and `requirements-prompt.txt`; monitor installers honor them while sharing the same venv.
+
+### Changed
+
+- Install helpers now install from the respective requirements files into `.venv_stack_monitor` (or `STACK_MON_VENV`).
+
 ## [0.1.16] – 2025-11-27
 
 ### Changed

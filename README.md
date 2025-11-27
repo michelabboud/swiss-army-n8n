@@ -76,4 +76,5 @@ The script is generic: drop `stackctl.sh` into another repo and point it at your
 - Example: `./stack_monitor.sh --profile core --refresh 2` or `STACK_MON_SERVICES=n8n,postgres ./stack_monitor.sh`.
 - Textual UI helper: `./stack_monitor.sh --install-textual` creates a local venv (`.venv_stack_monitor` by default) and installs Textual; use `--ui textual` or `STACK_MON_UI=textual` to force Textual.
 - prompt_toolkit UI: `./stack_monitor.sh --install-prompt` installs prompt_toolkit into the same venv; use `--ui prompt` or `STACK_MON_UI=prompt` to force it. Basic UI is the fallback.
+- Requirements: `requirements-textual.txt` and `requirements-prompt.txt` (installed into the shared `.venv_stack_monitor` by the helpers).
 - Env files note: keep your main stack env in `.env` (ignored by git). If you create monitor-specific settings, prefer a separate `.env_stack_monitor` (also git-ignored) to avoid mixing secrets/configs.
