@@ -302,30 +302,37 @@ def format_header(ctx) -> str:
   port_label = "on" if ctx["probe_ports_enabled"] else "off"
   line1 = f"{ctx['stack_name']} ({ctx['stack_slug']}) v{ctx['stack_version']}"
   line2 = f"project: {ctx['project'] or '-'} | compose: {ctx['compose_file']}"
-  sep_len = max(len(line1), len(line2), 60)
+  left_w = 42
+  right_w = 42
+  sep_len = left_w + right_w + 3
 
-  def wrap_list(label: str, items: List[str]) -> str:
+  def column_lines(label: str, items: List[str], width: int) -> List[str]:
     if not items:
-      return f"{label}: (none)"
+      return [f"{label}: (none)".ljust(width)]
     text = ", ".join(items)
     first = f"{label}: "
-    return textwrap.fill(
+    wrapped = textwrap.wrap(
       text,
-      width=sep_len,
+      width=width,
       initial_indent=first,
       subsequent_indent=" " * len(first),
     )
+    return [line.ljust(width) for line in wrapped]
 
-  profiles_line = wrap_list("profiles", ctx["profiles"])
-  services_line = wrap_list("services", ctx["services"])
+  prof_lines = column_lines("profiles", ctx["profiles"], left_w)
+  svc_lines = column_lines("services", ctx["services"], right_w)
+  max_lines = max(len(prof_lines), len(svc_lines))
+  prof_lines += ["".ljust(left_w)] * (max_lines - len(prof_lines))
+  svc_lines += ["".ljust(right_w)] * (max_lines - len(svc_lines))
+  combined = [f"{pl} | {sl}" for pl, sl in zip(prof_lines, svc_lines)]
 
   return "\n".join(
     [
       line1,
       line2,
       "=" * sep_len,
-      profiles_line,
-      services_line,
+      *combined,
+      "=" * sep_len,
       f"refresh: {ctx['refresh']}s",
       f"port probing: {port_label}",
       f"metadata: {ctx['metadata_path']}",

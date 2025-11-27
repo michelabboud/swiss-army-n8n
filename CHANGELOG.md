@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.25] – 2025-11-27
+
+### Changed
+
+- Headers now render profiles and services in two wrapped columns, improving readability while tables remain grouped by profile and in compose order.
+
 ## [0.1.24] – 2025-11-27
 
 ### Changed
