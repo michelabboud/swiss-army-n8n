@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.4] – 2025-11-27
+
+### Added
+
+- New AI profiles: LiteLLM proxy (`ai-gateway`), Flowise agents (`agents`), embeddings API (`embeddings`).
+
+### Changed
+
+- GPU-heavy services vLLM (`vllm` profile) and TGI (`tgi` profile) are present but commented out in `docker-compose.yml` for future hardware.
+
 ## [0.1.3] – 2025-11-27
 
 ### Added

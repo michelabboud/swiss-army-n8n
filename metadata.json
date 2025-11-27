@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -14,10 +14,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.3",
+      "version": "0.1.4",
       "date": "2025-11-27",
-      "title": "Add n8n service wiring guide",
-      "summary": "Document how every stack service is addressed from n8n with host/port map and example workflow chains."
+      "title": "Add AI gateways and park GPU-heavy services",
+      "summary": "Added LiteLLM, Flowise, embeddings API profiles; vLLM/TGI left commented for future GPU hardware."
     }
   }
 }
