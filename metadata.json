@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -14,10 +14,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.5",
+      "version": "0.1.6",
       "date": "2025-11-27",
-      "title": "Add Prometheus/Loki glue",
-      "summary": "Added Prometheus config and monitoring agents (node-exporter, cAdvisor, Promtail) and wired volumes for scrape and log shipping."
+      "title": "Improve endpoints display and post-start hints",
+      "summary": "Endpoints now render two-up, and start/restart print relevant published endpoints automatically."
     }
   }
 }
