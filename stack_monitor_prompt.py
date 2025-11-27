@@ -22,6 +22,7 @@ from prompt_toolkit.application import Application
 from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import HSplit, Layout
+from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame, TextArea
 
 ERR_PAT = re.compile(r"(ERROR|Error|error|CRIT|FATAL)")
@@ -393,12 +394,21 @@ class MonitorAppPT:
       Frame(self.header),
       Frame(self.body),
     ])
+    self.style = Style.from_dict(
+      {
+        "header": "bold",
+        "body": "",
+        "green": "fg:ansigreen",
+        "yellow": "fg:ansiyellow",
+        "red": "fg:ansired",
+      }
+    )
     self.app = Application(
       layout=Layout(root_container),
       key_bindings=kb,
       full_screen=True,
       mouse_support=False,
-      style="class:body",
+      style=self.style,
     )
     self.refresh_interval = self.ctx["refresh"]
     self._running = False

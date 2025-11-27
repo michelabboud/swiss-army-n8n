@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.19] – 2025-11-27
+
+### Fixed
+
+- prompt_toolkit monitor now initializes a proper Style, fixing the invalidation_hash error and enabling colored rendering.
+
 ## [0.1.18] – 2025-11-27
 
 ### Changed
