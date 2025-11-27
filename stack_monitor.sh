@@ -554,31 +554,57 @@ def build_service_meta(cfg):
     out.append({"name": name, "profiles": profs})
   return out
 
-def group_rows(rows, service_meta, profiles):
-  meta_by_name = {m["name"]: m.get("profiles", []) for m in service_meta}
-  grouped = []
-  last_group = None
-  for row in rows:
-    svc_profiles = meta_by_name.get(row["service"], [])
-    group = None
-    for p in svc_profiles:
-      if not profiles or p in profiles:
-        group = p
-        break
-    if group is None:
-      group = "(no-profile)"
-    if group != last_group:
-      grouped.append({"is_group": True, "label": group})
-      last_group = group
-    grouped.append(row)
-  return grouped
-
 def service_order(service_meta, selected_services):
   if selected_services:
     return selected_services
   if service_meta:
     return [m["name"] for m in service_meta]
   return []
+
+def derive_profile_order(service_meta, selected_services, selected_profiles):
+  order = []
+  seen = set()
+  selected_set = set(selected_services) if selected_services else None
+  for m in service_meta:
+    name = m["name"]
+    if selected_set is not None and name not in selected_set:
+      continue
+    for p in m.get("profiles", []):
+      if selected_profiles and p not in selected_profiles:
+        continue
+      if p not in seen:
+        order.append(p)
+        seen.add(p)
+      break
+  if "(no-profile)" not in seen:
+    order.append("(no-profile)")
+  return order
+
+def group_rows(rows, service_meta, profiles, selected_services):
+  meta_by_name = {m["name"]: m.get("profiles", []) for m in service_meta}
+  profile_order = derive_profile_order(service_meta, selected_services, profiles)
+  groups = {p: [] for p in profile_order}
+  for row in rows:
+    svc_profiles = meta_by_name.get(row["service"], [])
+    group = "(no-profile)"
+    for p in svc_profiles:
+      if not profiles or p in profiles:
+        group = p
+        break
+    if group not in groups:
+      groups[group] = []
+    groups[group].append(row)
+  grouped = []
+  for p in profile_order:
+    if groups.get(p):
+      grouped.append({"is_group": True, "label": p})
+      grouped.extend(groups[p])
+  # Include any unexpected groups
+  for p, rows_list in groups.items():
+    if p not in profile_order and rows_list:
+      grouped.append({"is_group": True, "label": p})
+      grouped.extend(rows_list)
+  return grouped
 
 def main():
   tty = sys.stdout.isatty()
@@ -690,7 +716,7 @@ def main():
           "cid": cid[:12] if cid else "-",
         }
       )
-    rows = group_rows(rows, service_meta, profiles)
+    rows = group_rows(rows, service_meta, profiles, services)
 
     # Colorize based on state/health/errors
     for r in rows:

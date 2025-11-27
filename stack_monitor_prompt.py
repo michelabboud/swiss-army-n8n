@@ -212,6 +212,25 @@ def service_order(service_meta: List[Dict[str, List[str]]], selected_services: L
     return [m["name"] for m in service_meta]
   return []
 
+def derive_profile_order(service_meta: List[Dict[str, List[str]]], selected_services: List[str], selected_profiles: List[str]) -> List[str]:
+  order: List[str] = []
+  seen = set()
+  selected_set = set(selected_services) if selected_services else None
+  for m in service_meta:
+    name = m["name"]
+    if selected_set is not None and name not in selected_set:
+      continue
+    for p in m.get("profiles", []):
+      if selected_profiles and p not in selected_profiles:
+        continue
+      if p not in seen:
+        order.append(p)
+        seen.add(p)
+      break
+  if "(no-profile)" not in seen:
+    order.append("(no-profile)")
+  return order
+
 
 def build_context():
   metadata_path = os.environ.get("STACKCTL_METADATA_FILE", "metadata.json")
@@ -360,6 +379,29 @@ def build_rows(ctx, log_cache, now):
     )
   return rows
 
+def group_rows(rows, ctx):
+  profile_order = derive_profile_order(ctx.get("service_meta", []), ctx["services"], ctx["profiles"])
+  meta_by_name = {m["name"]: m.get("profiles", []) for m in ctx.get("service_meta", [])}
+  groups: Dict[str, List[Dict]] = {p: [] for p in profile_order}
+  for r in rows:
+    svc_profs = meta_by_name.get(r["service"], [])
+    group = "(no-profile)"
+    for p in svc_profs:
+      if not ctx["profiles"] or p in ctx["profiles"]:
+        group = p
+        break
+    groups.setdefault(group, []).append(r)
+  out = []
+  for p in profile_order:
+    if groups.get(p):
+      out.append({"group": p})
+      out.extend(groups[p])
+  for p, rows_list in groups.items():
+    if p not in profile_order and rows_list:
+      out.append({"group": p})
+      out.extend(rows_list)
+  return out
+
 
 def style_state(text: str) -> Tuple[str, str]:
   if text == "running":
@@ -484,24 +526,7 @@ class MonitorAppPT:
   async def refresh(self):
     now = time.time()
     rows = build_rows(self.ctx, self.log_cache, now)
-    profile_order = self.ctx["profiles"][:] if self.ctx["profiles"] else []
-    meta_by_name = {m["name"]: m.get("profiles", []) for m in self.ctx.get("service_meta", [])}
-    grouped = []
-    last_group = None
-    for r in rows:
-      svc_profs = meta_by_name.get(r["service"], [])
-      group = None
-      for p in svc_profs:
-        if not profile_order or p in profile_order:
-          group = p
-          break
-      if group is None:
-        group = "(no-profile)"
-      if group != last_group:
-        grouped.append({"group": group})
-        last_group = group
-      grouped.append(r)
-    rows = grouped
+    rows = group_rows(rows, self.ctx)
     self.header.text = format_header(self.ctx)
     formatted = render_table_formatted(rows)
     self.body_control.text = formatted

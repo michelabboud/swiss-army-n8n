@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.24] – 2025-11-27
+
+### Changed
+
+- All monitor UIs group services by profile (or `(no-profile)`) while preserving compose order; headers remain wrapped.
+
 ## [0.1.23] – 2025-11-27
 
 ### Fixed
