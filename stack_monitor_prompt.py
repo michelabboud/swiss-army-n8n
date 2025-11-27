@@ -404,7 +404,8 @@ def style_ports(text: str) -> Tuple[str, str]:
 def render_table_formatted(rows) -> FormattedText:
   tokens: List[Tuple[str, str]] = []
   cid_w = 13
-  svc_w = max(12, min(28, max(len(r["service"]) for r in rows) + 2)) if rows else 12
+  display_rows = [r for r in rows if not r.get("group")]
+  svc_w = max(12, min(28, max(len(r["service"]) for r in display_rows) + 2)) if display_rows else 12
   state_w = 14
   health_w = 12
   err_w = 12

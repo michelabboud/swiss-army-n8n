@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.22",
+    "version": "0.1.23",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -15,10 +15,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.22",
+      "version": "0.1.23",
       "date": "2025-11-27",
-      "title": "Profile-grouped monitors with compose ordering",
-      "summary": "All monitors now preserve compose order and group services by profile with compact headers."
+      "title": "Fix prompt grouping crash",
+      "summary": "Prompt UI now skips group markers when computing column widths, avoiding KeyError."
     }
   }
 }
