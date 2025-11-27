@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.28] – 2025-11-27
+
+### Changed
+
+- Basic monitor now uses wrapped stack info (profiles/services) and a visible column separator in the two-column layout; profile grouping and compose order remain intact.
+
 ## [0.1.27] – 2025-11-27
 
 ### Changed

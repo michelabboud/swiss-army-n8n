@@ -71,6 +71,11 @@ parse_csv_append() {
   done
 }
 
+wrap_text() {
+  local txt="$1"; local width="${2:-84}"
+  printf "%s" "$txt" | fold -s -w "$width"
+}
+
 ensure_target_mode() {
   local new="$1"
   if [[ "$TARGET_MODE" != "all" && "$TARGET_MODE" != "$new" ]]; then
@@ -487,7 +492,8 @@ def render(rows, header_lines, tty):
     print("No services to display.")
     return
   cid_w = 13
-  svc_w = max(12, min(28, max(visible_len(r.get("service_disp", "")) for r in rows if not r.get("is_group")) + 2))
+  display_rows = [r for r in rows if not r.get("is_group")]
+  svc_w = max(12, min(28, max(visible_len(r.get("service_disp", "")) for r in display_rows) + 2)) if display_rows else 12
   state_w = 14
   health_w = 12
   err_w = 12
@@ -521,7 +527,7 @@ def render(rows, header_lines, tty):
   left += [""] * (max_len - len(left))
   right += [""] * (max_len - len(right))
   for l, r in zip(left, right):
-    print(f"{l}   {r}")
+    print(f"{l} | {r}")
   sys.stdout.flush()
 
 def build_ports_map(cfg):
@@ -660,7 +666,6 @@ def main():
   cfg_json = compose_config_json(base_cmd)
   port_map = build_ports_map(cfg_json) if cfg_json else {}
   service_meta = build_service_meta(cfg_json) if cfg_json else []
-  service_meta = build_service_meta(cfg_json) if cfg_json else []
 
   probe_setting = os.environ.get("STACK_MON_PROBE_PORTS", "auto").lower()
   probe_enabled = True
@@ -672,13 +677,21 @@ def main():
     probe_enabled = any(port_map.get(svc) for svc in services)
 
   log_cache = {}
-  profiles_label = ",".join(profiles) if profiles else "(none)"
-  services_label = ",".join(services) if services else "(none)"
-  header_static = [
-    f"{stack_name} ({stack_slug}) v{stack_ver} | project: {project or '-'}",
-    f"compose: {compose_file} | profiles: {profiles_label} | services: {services_label}",
-    f"refresh: {refresh}s | metadata: {metadata_path} | port probing: {'on' if probe_enabled else 'off'}",
-  ]
+  local sep_line
+  sep_line=$(printf '=%.0s' $(seq 1 84))
+  header_static=()
+  header_static+=("${stack_name} (${stack_slug}) v${stack_ver}")
+  header_static+=("project: ${project:-'-'} | compose: ${compose_file}")
+  header_static+=("$sep_line")
+  while IFS= read -r line; do header_static+=("$line"); done < <(wrap_text "profiles: ${profiles[*]:-(none)}" 84)
+  while IFS= read -r line; do header_static+=("$line"); done < <(wrap_text "services: ${services[*]:-(none)}" 84)
+  header_static+=("$sep_line")
+  header_static+=("refresh: ${refresh}s")
+  probe_label=$([ "$probe_enabled" = true ] && echo "on" || echo "off")
+  header_static+=("port probing: ${probe_label}")
+  header_static+=("metadata: ${metadata_path}")
+  header_static+=("")
+  header_static+=("keys: q quit, r refresh")
 
   order = service_order(service_meta, services) or services
 

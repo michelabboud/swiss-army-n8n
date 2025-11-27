@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.27",
+    "version": "0.1.28",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -15,10 +15,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.27",
+      "version": "0.1.28",
       "date": "2025-11-27",
-      "title": "UI tweaks: separators and ports",
-      "summary": "Prompt UI adds a visible column separator; Textual keeps grouping/order and clarifies port display."
+      "title": "Basic monitor header and separator",
+      "summary": "Basic UI uses wrapped stack info and visible column separator; grouping/order unchanged."
     }
   }
 }
