@@ -16,7 +16,7 @@ set -Eeuo pipefail
 # --- Defaults (overridden by metadata.json when possible) ---
 STACK_NAME_DEFAULT="Swiss Army Stack"
 STACK_SLUG_DEFAULT="swiss-army-stack"
-STACK_VERSION_DEFAULT="0.1.8"
+STACK_VERSION_DEFAULT="0.1.15"
 
 COMPOSE_FILE_DEFAULT="${COMPOSE_FILE_DEFAULT:-docker-compose.yml}"
 PROJECT_NAME_DEFAULT="${PROJECT_NAME_DEFAULT:-swiss-army-stack}"
@@ -202,6 +202,13 @@ detect_compose() {
   error "Neither 'docker compose' nor 'docker-compose' found."
 }
 
+available_profiles() {
+  detect_compose
+  local -a _profiles=()
+  mapfile -t _profiles < <("${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" -p "$PROJECT_NAME" config --profiles 2>/dev/null || true)
+  printf '%s\n' "${_profiles[@]}"
+}
+
 set_restart_policy_mode() {
   local raw="${1,,}"
   case "$raw" in
@@ -230,9 +237,8 @@ ensure_profile_selection() {
   if [[ "$TARGET_MODE" != "all" || ${#PROFILES[@]} -ne 0 || ${#SERVICES[@]} -ne 0 ]]; then
     return
   fi
-  detect_compose
   local -a _auto_profiles=()
-  mapfile -t _auto_profiles < <("${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" -p "$PROJECT_NAME" config --profiles 2>/dev/null || true)
+  mapfile -t _auto_profiles < <(available_profiles)
   if [[ "${#_auto_profiles[@]}" -gt 0 ]]; then
     PROFILES=("${_auto_profiles[@]}")
   fi
@@ -569,11 +575,20 @@ cmd_info() {
   printf '  %sRestart policy:%s   %s (default: %s)\n' "$BOLD" "$RESET" "$RESTART_POLICY_MODE" "$RESTART_POLICY_DEFAULT"
   printf '  %sTarget mode:%s      %s\n' "$BOLD" "$RESET" "$TARGET_MODE"
 
+  local profiles_label=""
   if [[ ${#PROFILES[@]} -gt 0 ]]; then
-    printf '  %sProfiles:%s         %s\n' "$BOLD" "$RESET" "${PROFILES[*]}"
+    profiles_label="${PROFILES[*]}"
   else
-    printf '  %sProfiles:%s         (none; default)\n' "$BOLD" "$RESET"
+    local -a _avail_profiles=()
+    mapfile -t _avail_profiles < <(available_profiles)
+    if [[ ${#_avail_profiles[@]} -gt 0 ]]; then
+      profiles_label="(none; compose profiles available)"
+    else
+      profiles_label="(none; compose has no profiles)"
+    fi
   fi
+  printf '  %sProfiles:%s         %s\n' "$BOLD" "$RESET" "$profiles_label"
+
   if [[ ${#SERVICES[@]} -gt 0 ]]; then
     printf '  %sServices:%s         %s\n' "$BOLD" "$RESET" "${SERVICES[*]}"
   fi

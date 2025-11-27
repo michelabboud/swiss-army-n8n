@@ -1,5 +1,6 @@
 # Local runtime data
 data/
+.env_stack_monitor
 
 # Environment / secrets
 .env
@@ -17,6 +18,9 @@ data/
 *.tmp
 *.bak
 
+# Local virtualenvs
+.venv/
+.venv_stack_monitor/
 # Docker compose overrides built locally
 docker-compose.override.yml
 compose.*.yml

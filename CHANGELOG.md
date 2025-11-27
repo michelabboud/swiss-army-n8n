@@ -4,13 +4,58 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
-## [0.1.8] – 2025-11-27
+## [0.1.15] – 2025-11-27
 
 ### Changed
 
-- Compose `restart:` entries are commented out so manual start/stop is the baseline when running docker compose directly.
-- Default restart policy is now `on-failure` via metadata/env (`compose.default_restart_policy` or `STACKCTL_DEFAULT_RESTART_POLICY`); `--restart-policy` still overrides per stack/profile/service.
-- `stackctl.sh --info` reports both the active and default restart policies for clarity.
+- Textual monitor renders colors via `rich.Text` cells, fixing the “(state,style)” literal display and restoring colored UI. Prompt/basic monitors unchanged.
+
+## [0.1.14] – 2025-11-27
+
+### Added
+
+- prompt_toolkit monitor added (`--ui prompt` / `STACK_MON_UI=prompt`) with a helper installer `--install-prompt` into the local venv. Requirements now list prompt_toolkit.
+
+### Changed
+
+- Textual option remains; basic UI still the fallback. Version bumped accordingly.
+
+## [0.1.13] – 2025-11-27
+
+### Changed
+
+- Textual monitor uses the current DataTable API (clears without the unsupported `rows` kw) and re-adds columns if needed to stay compatible.
+
+## [0.1.12] – 2025-11-27
+
+### Changed
+
+- Textual monitor now prefers the local venv (`PATH` prepended) when launching and suppresses Ctrl+C stack traces.
+- Versions bumped accordingly.
+
+## [0.1.11] – 2025-11-27
+
+### Added
+
+- `stack_monitor.sh --install-textual` creates/uses a local venv (default `.venv_stack_monitor`) and installs Textual there; the monitor auto-detects that venv for the Textual UI while keeping the basic UI fallback.
+
+### Changed
+
+- Textual detection prefers the local venv or `STACK_MON_PYTHON`; help now documents venv-related env vars.
+
+## [0.1.10] – 2025-11-27
+
+### Changed
+
+- stack_monitor now clears the screen reliably, pads columns with ANSI-safe widths, moves container ID to the first column, and allows disabling log-error sampling via `STACK_MON_LOG_ERRORS=off`. Port probing and headers are cleaner, and sampling is lighter to reduce lag with many services.
+- stackctl/metadata versions bumped accordingly.
+
+## [0.1.9] – 2025-11-27
+
+### Changed
+
+- stackctl now handles compose files without profiles more clearly (info output distinguishes between “no profiles present” and “profiles exist but none selected”) and reuses a shared helper for availability checks.
+- `stack_monitor.sh` remains generic and driven by metadata/env for reuse across projects.
 
 ## [0.1.6] – 2025-11-27
 

@@ -1,0 +1,2 @@
+textual>=0.74.0
+prompt_toolkit>=3.0.0

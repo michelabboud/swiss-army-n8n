@@ -23,7 +23,7 @@ This repo contains:
   - `STACK.md` – services and profiles
   - `ARCHITECTURE.md` – how the pieces fit together
 
-Script version: **v0.1.6**
+Script version: **v0.1.15**
 
 ---
 
@@ -68,3 +68,12 @@ The script is generic: drop `stackctl.sh` into another repo and point it at your
 - Run with flags instead of metadata if you prefer:
   - `./stackctl.sh --file my-compose.yml --project-name myproj start --profile core`
   - `./stackctl.sh --metadata mymeta.json start --restart-policy on-failure`
+
+## Live monitor
+
+- `stack_monitor.sh` provides a lightweight, auto-refreshing view of service state/health/log errors.
+- Defaults come from `metadata.json` (`compose.file`, `compose.project_name_default`, `monitor.refresh_seconds`) and env overrides (`STACKCTL_METADATA_FILE`, `STACK_MON_REFRESH`, `STACK_MON_PROFILES`, `STACK_MON_SERVICES`, `STACK_MON_COMPOSE_FILE`, `STACK_MON_PROJECT`, `STACK_MON_PROBE_PORTS`).
+- Example: `./stack_monitor.sh --profile core --refresh 2` or `STACK_MON_SERVICES=n8n,postgres ./stack_monitor.sh`.
+- Textual UI helper: `./stack_monitor.sh --install-textual` creates a local venv (`.venv_stack_monitor` by default) and installs Textual; use `--ui textual` or `STACK_MON_UI=textual` to force Textual.
+- prompt_toolkit UI: `./stack_monitor.sh --install-prompt` installs prompt_toolkit into the same venv; use `--ui prompt` or `STACK_MON_UI=prompt` to force it. Basic UI is the fallback.
+- Env files note: keep your main stack env in `.env` (ignored by git). If you create monitor-specific settings, prefer a separate `.env_stack_monitor` (also git-ignored) to avoid mixing secrets/configs.
