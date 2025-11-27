@@ -159,6 +159,7 @@ Examples:
   stackctl.sh clean --all
 
 Any arguments after "--" are passed directly to docker compose.
+If your compose file uses profiles and you don't specify any, stackctl enables all profiles by default.
 EOF
 }
 
