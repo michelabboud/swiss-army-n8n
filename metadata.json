@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -14,11 +14,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.1",
+      "version": "0.1.2",
       "date": "2025-11-27",
-      "title": "Initial Swiss Army Stack + stackctl command echoing",
-      "summary": "First public version of the Swiss Army Stack with the full service zoo and a stackctl control script that prints all docker compose commands before executing them."
+      "title": "Bind-mounted data paths and image fixes",
+      "summary": "All persistent services now bind into ./data, and images were updated to avoid missing or restricted registries."
     }
   }
 }
-

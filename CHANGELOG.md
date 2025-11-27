@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.2] – 2025-11-27
+
+### Changed
+
+- All persistent services now bind-mount into `./data/...` instead of Docker-managed named volumes to make state explicit and easy to back up.
+- Queue and image services switched away from Bitnami/Docker Hub tags that failed to resolve; Kafka/ZooKeeper now use Confluent images and Thumbor moves to GHCR, Loki pinned to `grafana/loki:2.9.8`.
+- Keycloak image pinned to `keycloak/keycloak:24.0.5` to avoid Quay pull issues.
+
+### Removed
+
+- Unused named volume declarations at the bottom of `docker-compose.yml` (replaced by host binds).
 
 ## [0.1.1] – 2025-11-27
 
@@ -338,4 +349,3 @@ Initial implementation of a **Swiss-army control script** for Docker Compose, wi
   Future changes should:
   - Bump `SCRIPT_VERSION` in `stackctl.sh`.
   - Add a new section above this line with the new version and date.
-

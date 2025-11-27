@@ -1,0 +1,22 @@
+# Local runtime data
+data/
+
+# Environment / secrets
+.env
+.env.*
+
+# Editor cruft
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs and temp files
+*.log
+*.tmp
+*.bak
+
+# Docker compose overrides built locally
+docker-compose.override.yml
+compose.*.yml
