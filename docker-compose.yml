@@ -472,9 +472,9 @@ services:
       - LITELLM_PROXY_PORT=4000
       - LITELLM_MASTER_KEY=dev-master-key
       - LITELLM_LOG=info
-      - LITELLM_CONFIG=/app/config.yaml
+      - LITELLM_CONFIG=/app/proxy_server_config.yaml
     volumes:
-      - ./litellm/config.yaml:/app/config.yaml:ro
+      - ./litellm/config.yaml:/app/proxy_server_config.yaml:ro
       - ./data/litellm:/var/lib/litellm
     ports:
       - "4000:4000"
