@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.21",
+    "version": "0.1.22",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -15,10 +15,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.21",
+      "version": "0.1.22",
       "date": "2025-11-27",
-      "title": "Compact header layout",
-      "summary": "Prompt and Textual monitors now use wrapped profile/service lists with separators for improved readability."
+      "title": "Profile-grouped monitors with compose ordering",
+      "summary": "All monitors now preserve compose order and group services by profile with compact headers."
     }
   }
 }

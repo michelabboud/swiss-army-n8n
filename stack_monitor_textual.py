@@ -205,6 +205,13 @@ def build_service_meta(cfg: Dict) -> List[Tuple[str, List[str]]]:
     meta.append((name, profs))
   return meta
 
+def service_order(service_meta: List[Tuple[str, List[str]]], selected: List[str]) -> List[str]:
+  if selected:
+    return selected
+  if service_meta:
+    return [name for name, _ in service_meta]
+  return []
+
 
 @dataclass
 class ComposeContext:
@@ -416,9 +423,9 @@ class MonitorApp(App):
 
     rows = []
     now = time.time()
-    service_order = [name for name, _ in self.ctx.service_meta] if self.ctx.service_meta else self.ctx.services
-    for svc in service_order:
-      if svc not in self.ctx.services:
+    svc_order = service_order(self.ctx.service_meta, self.ctx.services)
+    for svc in svc_order:
+      if self.ctx.services and svc not in self.ctx.services:
         continue
       cid = get_container_id(self.ctx.base_cmd, svc)
       if not cid:
@@ -473,6 +480,24 @@ class MonitorApp(App):
       if group not in seen_groups:
         grouped_rows.append({"group": group})
         seen_groups.append(group)
+      grouped_rows.append(r)
+
+    profile_order = self.ctx.profiles[:] if self.ctx.profiles else []
+    meta_by_name = {n: profs for n, profs in self.ctx.service_meta}
+    grouped_rows = []
+    last_group = None
+    for r in rows:
+      svc_profs = meta_by_name.get(r["service"], [])
+      group = None
+      for p in svc_profs:
+        if not profile_order or p in profile_order:
+          group = p
+          break
+      if group is None:
+        group = "(no-profile)"
+      if group != last_group:
+        grouped_rows.append({"group": group})
+        last_group = group
       grouped_rows.append(r)
 
     self.table.clear()

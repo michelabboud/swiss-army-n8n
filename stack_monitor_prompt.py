@@ -197,6 +197,21 @@ def build_ports_map(cfg: Dict) -> Dict[str, List[Tuple[str, int]]]:
     port_map[name] = host_ports
   return port_map
 
+def build_service_meta(cfg: Dict) -> List[Dict[str, List[str]]]:
+  meta: List[Dict[str, List[str]]] = []
+  services = cfg.get("services", {}) if isinstance(cfg, dict) else {}
+  for name, data in services.items():
+    profs = data.get("profiles") or []
+    meta.append({"name": name, "profiles": profs})
+  return meta
+
+def service_order(service_meta: List[Dict[str, List[str]]], selected_services: List[str]) -> List[str]:
+  if selected_services:
+    return selected_services
+  if service_meta:
+    return [m["name"] for m in service_meta]
+  return []
+
 
 def build_context():
   metadata_path = os.environ.get("STACKCTL_METADATA_FILE", "metadata.json")
@@ -233,6 +248,7 @@ def build_context():
 
   cfg_json = compose_config_json(base_cmd)
   port_map = build_ports_map(cfg_json) if cfg_json else {}
+  service_meta = build_service_meta(cfg_json) if cfg_json else []
 
   probe_setting = os.environ.get("STACK_MON_PROBE_PORTS", "auto").lower()
   probe_enabled = True
@@ -254,6 +270,7 @@ def build_context():
     "profiles": profiles,
     "services": services,
     "port_map": port_map,
+    "service_meta": service_meta,
     "base_cmd": base_cmd,
     "refresh": refresh,
     "probe_ports_enabled": probe_enabled,
@@ -301,7 +318,10 @@ def format_header(ctx) -> str:
 
 def build_rows(ctx, log_cache, now):
   rows = []
-  for svc in ctx["services"]:
+  order = service_order(ctx.get("service_meta", []), ctx["services"])
+  for svc in order:
+    if ctx["services"] and svc not in ctx["services"]:
+      continue
     cid = get_container_id(ctx["base_cmd"], svc)
     if not cid:
       state = "down"
@@ -463,14 +483,12 @@ class MonitorAppPT:
   async def refresh(self):
     now = time.time()
     rows = build_rows(self.ctx, self.log_cache, now)
-    # Group rows by profile keeping compose order
     profile_order = self.ctx["profiles"][:] if self.ctx["profiles"] else []
-    meta_by_name = {m["name"]: m["profiles"] if isinstance(m, dict) else m for m in []}
+    meta_by_name = {m["name"]: m.get("profiles", []) for m in self.ctx.get("service_meta", [])}
     grouped = []
-    seen_groups = []
-    # We don't have explicit service meta here; rows already follow compose order
+    last_group = None
     for r in rows:
-      svc_profs = []  # no meta mapping available; leave blank
+      svc_profs = meta_by_name.get(r["service"], [])
       group = None
       for p in svc_profs:
         if not profile_order or p in profile_order:
@@ -478,9 +496,9 @@ class MonitorAppPT:
           break
       if group is None:
         group = "(no-profile)"
-      if group not in seen_groups:
+      if group != last_group:
         grouped.append({"group": group})
-        seen_groups.append(group)
+        last_group = group
       grouped.append(r)
     rows = grouped
     self.header.text = format_header(self.ctx)

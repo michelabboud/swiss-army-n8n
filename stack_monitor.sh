@@ -555,31 +555,30 @@ def build_service_meta(cfg):
   return out
 
 def group_rows(rows, service_meta, profiles):
-  # Determine profile order
-  profile_order = profiles[:] if profiles else []
-  # Collect groups
-  meta_by_name = {m["name"]: m for m in service_meta}
-  groups = {}
-  order = []
+  meta_by_name = {m["name"]: m.get("profiles", []) for m in service_meta}
+  grouped = []
+  last_group = None
   for row in rows:
-    meta = meta_by_name.get(row["service"], {})
-    svc_profiles = meta.get("profiles") or []
+    svc_profiles = meta_by_name.get(row["service"], [])
     group = None
     for p in svc_profiles:
-      if not profile_order or p in profile_order:
+      if not profiles or p in profiles:
         group = p
         break
     if group is None:
       group = "(no-profile)"
-    if group not in groups:
-      groups[group] = []
-      order.append(group)
-    groups[group].append(row)
-  grouped = []
-  for g in order:
-    grouped.append({"is_group": True, "label": g})
-    grouped.extend(groups[g])
+    if group != last_group:
+      grouped.append({"is_group": True, "label": group})
+      last_group = group
+    grouped.append(row)
   return grouped
+
+def service_order(service_meta, selected_services):
+  if selected_services:
+    return selected_services
+  if service_meta:
+    return [m["name"] for m in service_meta]
+  return []
 
 def main():
   tty = sys.stdout.isatty()
@@ -628,6 +627,7 @@ def main():
   cfg_json = compose_config_json(base_cmd)
   port_map = build_ports_map(cfg_json) if cfg_json else {}
   service_meta = build_service_meta(cfg_json) if cfg_json else []
+  service_meta = build_service_meta(cfg_json) if cfg_json else []
 
   probe_setting = os.environ.get("STACK_MON_PROBE_PORTS", "auto").lower()
   probe_enabled = True
@@ -647,10 +647,14 @@ def main():
     f"refresh: {refresh}s | metadata: {metadata_path} | port probing: {'on' if probe_enabled else 'off'}",
   ]
 
+  order = service_order(service_meta, services) or services
+
   while True:
     now = time.time()
     rows = []
-    for svc in services:
+    for svc in order:
+      if services and svc not in services:
+        continue
       cid = get_container_id(base_cmd, svc)
       if not cid:
         state = "down"
