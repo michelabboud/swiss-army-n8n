@@ -265,10 +265,11 @@ def format_header(ctx) -> str:
   services_label = ",".join(ctx["services"]) if ctx["services"] else "(none)"
   port_label = "on" if ctx["probe_ports_enabled"] else "off"
   return (
-    f"{ctx['stack_name']} ({ctx['stack_slug']}) v{ctx['stack_version']} | project: {ctx['project'] or '-'}\n"
-    f"compose: {ctx['compose_file']} | profiles: {profiles_label} | services: {services_label}\n"
+    f"{ctx['stack_name']} ({ctx['stack_slug']}) v{ctx['stack_version']}\n"
+    f"project: {ctx['project'] or '-'} | compose: {ctx['compose_file']}\n"
+    f"profiles: {profiles_label} | services: {services_label}\n"
     f"refresh: {ctx['refresh']}s | metadata: {ctx['metadata_path']} | port probing: {port_label}\n"
-    "Keys: q to quit, r to refresh now"
+    "keys: q quit, r refresh"
   )
 
 
@@ -374,6 +375,12 @@ def render_table(rows) -> str:
     )
   return "\n".join(lines)
 
+def ansi_color(text: str, color: str) -> str:
+  code = {"green": "32", "yellow": "33", "red": "31"}.get(color, "")
+  if not code:
+    return text
+  return f"\033[{code}m{text}\033[0m"
+
 
 class MonitorAppPT:
   def __init__(self, ctx):
@@ -417,6 +424,27 @@ class MonitorAppPT:
     now = time.time()
     rows = build_rows(self.ctx, self.log_cache, now)
     table_text = render_table(rows)
+    # Apply simple ANSI colors
+    lines = table_text.splitlines()
+    if len(lines) >= 2:
+      colored_lines = [lines[0], lines[1]]
+      cid_w = 13
+      svc_w = max(12, min(28, max(len(r["service"]) for r in rows) + 2)) if rows else 12
+      state_w = 14
+      health_w = 12
+      err_w = 12
+      port_w = 16
+      for r in rows:
+        state_style, health_style, err_style, port_style = style_state(r["state"])[0], style_health(r["health"])[0], style_errors(r["errors"])[0], style_ports(r["ports"])[0]
+        colored_lines.append(
+          f"{r['cid'].ljust(cid_w)}"
+          f"{r['service'].ljust(svc_w)}"
+          f"{ansi_color(r['state'].ljust(state_w), state_style.replace('class:', ''))}"
+          f"{ansi_color(r['health'].ljust(health_w), health_style.replace('class:', ''))}"
+          f"{ansi_color(r['errors'].ljust(err_w), err_style.replace('class:', ''))}"
+          f"{ansi_color(r['ports'].ljust(port_w), port_style.replace('class:', ''))}"
+        )
+      table_text = "\n".join(colored_lines)
     self.header.text = format_header(self.ctx)
     self.body.text = table_text
 

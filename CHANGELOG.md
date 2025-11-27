@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.20] – 2025-11-27
+
+### Changed
+
+- Prompt UI now applies ANSI coloring with a proper prompt_toolkit Style and more compact headers; down services still avoid probes.
+
 ## [0.1.19] – 2025-11-27
 
 ### Fixed

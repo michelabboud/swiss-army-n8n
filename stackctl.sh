@@ -16,7 +16,7 @@ set -Eeuo pipefail
 # --- Defaults (overridden by metadata.json when possible) ---
 STACK_NAME_DEFAULT="Swiss Army Stack"
 STACK_SLUG_DEFAULT="swiss-army-stack"
-STACK_VERSION_DEFAULT="0.1.19"
+STACK_VERSION_DEFAULT="0.1.20"
 
 COMPOSE_FILE_DEFAULT="${COMPOSE_FILE_DEFAULT:-docker-compose.yml}"
 PROJECT_NAME_DEFAULT="${PROJECT_NAME_DEFAULT:-swiss-army-stack}"
