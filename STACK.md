@@ -212,6 +212,11 @@ Services:
 - `ollama` – local LLM server (`ollama:11434`)
 - `qdrant` – vector database for embeddings
 - `weaviate` – vector DB / semantic graph DB
+- `litellm` *(profile: ai-gateway)* – OpenAI-compatible proxy pointing to Ollama (`litellm:4000`)
+- `flowise` *(profile: agents)* – visual agent/orchestration builder (`flowise:3002`)
+- `vllm` *(profile: vllm)* – OpenAI-compatible server running `facebook/opt-125m` on CPU (`vllm:8008`)
+- `tgi` *(profile: tgi)* – Hugging Face text-generation-inference with `sshleifer/tiny-gpt2` (`tgi:8085`)
+- `embeddings-api` *(profile: embeddings)* – text-embeddings-inference with `sentence-transformers/all-MiniLM-L6-v2` (`embeddings-api:8086`)
 
 Patterns:
 
@@ -220,6 +225,13 @@ Patterns:
   - Summarization
   - Classification
   - Small automations
+- n8n uses LiteLLM as an OpenAI drop-in:
+  - Base URL: `http://litellm:4000`
+  - Model name in requests: `ollama-llama3`
+  - Add header `Authorization: Bearer dev-master-key`
+- Optional alternates:
+  - Call `http://vllm:8008/v1/chat/completions` (OpenAI style) for small CPU-friendly model.
+  - Call `http://tgi:8085/generate` for TGI (tiny GPT-2) text generation.
+  - Call `http://embeddings-api:8086/embed` (TEI) for embeddings.
 
 This forms the base for RAG-style flows, with n8n as the orchestrator.
-

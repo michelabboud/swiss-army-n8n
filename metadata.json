@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -14,10 +14,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.2",
+      "version": "0.1.3",
       "date": "2025-11-27",
-      "title": "Bind-mounted data paths and image fixes",
-      "summary": "All persistent services now bind into ./data, and images were updated to avoid missing or restricted registries."
+      "title": "Add n8n service wiring guide",
+      "summary": "Document how every stack service is addressed from n8n with host/port map and example workflow chains."
     }
   }
 }

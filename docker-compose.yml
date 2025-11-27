@@ -415,5 +415,88 @@ services:
     networks:
       - core
 
+  # =========================
+  # AI gateways / agents
+  # =========================
+  litellm:
+    image: ghcr.io/berriai/litellm:main
+    restart: unless-stopped
+    profiles: ["ai-gateway"]
+    environment:
+      - LITELLM_PROXY_PORT=4000
+      - LITELLM_MASTER_KEY=dev-master-key
+      - LITELLM_LOG=info
+      - LITELLM_CONFIG=/app/config.yaml
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+      - ./data/litellm:/var/lib/litellm
+    ports:
+      - "4000:4000"
+    networks:
+      - core
+
+  flowise:
+    image: flowiseai/flowise:latest
+    restart: unless-stopped
+    profiles: ["agents"]
+    environment:
+      - PORT=3002
+      - FLOWISE_USERNAME=admin
+      - FLOWISE_PASSWORD=admin
+      - DATABASE_TYPE=sqlite
+      - DATABASE_PATH=/data/flowise.sqlite
+      - APIKEY_PATH=/data/api-keys.txt
+      - LOG_PATH=/data/logs
+      - FLOWISE_FILE_STORAGE_PATH=/data/storage
+      - SECRETKEY_OVERWRITE=changeme
+    volumes:
+      - ./data/flowise:/data
+    ports:
+      - "3002:3002"
+    networks:
+      - core
+
+  # vllm (commented out for future GPU hardware)
+  # vllm:
+  #   image: vllm/vllm-openai:latest
+  #   restart: unless-stopped
+  #   profiles: ["vllm"]
+  #   command: ["--model", "facebook/opt-125m", "--port", "8008"]
+  #   environment:
+  #     - VLLM_ALLOW_LONG_CONTEXT_WINDOW=1
+  #   volumes:
+  #     - ./data/vllm:/root/.cache/huggingface
+  #   ports:
+  #     - "8008:8008"
+  #   networks:
+  #     - core
+
+  # tgi (commented out for future GPU hardware)
+  # tgi:
+  #   image: ghcr.io/huggingface/text-generation-inference:2.3.1
+  #   restart: unless-stopped
+  #   profiles: ["tgi"]
+  #   command: ["--model-id", "sshleifer/tiny-gpt2", "--port", "8085", "--num-shard", "1"]
+  #   environment:
+  #     - HF_HUB_OFFLINE=0
+  #   volumes:
+  #     - ./data/tgi:/data
+  #   ports:
+  #     - "8085:8085"
+  #   networks:
+  #     - core
+
+  embeddings-api:
+    image: ghcr.io/huggingface/text-embeddings-inference:1.6
+    restart: unless-stopped
+    profiles: ["embeddings"]
+    command: ["--model-id", "sentence-transformers/all-MiniLM-L6-v2", "--port", "8086"]
+    volumes:
+      - ./data/embeddings:/data
+    ports:
+      - "8086:8086"
+    networks:
+      - core
+
 networks:
   core:

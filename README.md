@@ -16,13 +16,14 @@ This repo contains:
   - Keycloak
   - Prometheus, Grafana, Loki, Uptime Kuma
   - Ollama, Qdrant, Weaviate
+  - LiteLLM proxy, Flowise agents, vLLM, TGI, Embeddings API
 - A **Swiss-army control script**: `stackctl.sh`
 - Supporting docs:
   - `INSTALL.md` – how to get it running
   - `STACK.md` – services and profiles
   - `ARCHITECTURE.md` – how the pieces fit together
 
-Script version: **v0.1.2**
+Script version: **v0.1.3**
 
 ---
 

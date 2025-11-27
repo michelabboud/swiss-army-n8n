@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.3] – 2025-11-27
+
+### Added
+
+- `N8N_SERVICES.md` cheatsheet describing how to address every stack service from n8n (host/port map, credentials, and example workflow chains per service).
+
 ## [0.1.2] – 2025-11-27
 
 ### Changed

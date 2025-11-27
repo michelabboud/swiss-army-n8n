@@ -1,0 +1,14 @@
+litellm_settings:
+  drop_params: true
+  timeout: 120
+
+model_list:
+  - model_name: ollama-llama3
+    litellm_params:
+      model: ollama/llama3
+      api_base: http://ollama:11434
+      api_key: dummy-ollama-key
+      stream: true
+
+general_settings:
+  master_key: dev-master-key
