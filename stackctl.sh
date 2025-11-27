@@ -124,6 +124,7 @@ Commands:
   info        Show stack and docker compose information
   status      Show docker compose ps
   health      Inspect containers: status, health, mounts
+  endpoints   Summarize externally mapped service ports (host -> container)
 
 Target selection:
   --all               Operate on all services (default)
@@ -182,6 +183,12 @@ detect_compose() {
 compose() {
   detect_compose
 
+  local log_cmd=true
+  if [[ "${1:-}" == "--no-log" ]]; then
+    log_cmd=false
+    shift
+  fi
+
   # If no profiles/services specified, auto-enable all compose profiles so "start" works out-of-the-box.
   if [[ "$TARGET_MODE" == "all" && "${#PROFILES[@]}" -eq 0 && "${#SERVICES[@]}" -eq 0 ]]; then
     mapfile -t _auto_profiles < <("${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" -p "$PROJECT_NAME" config --profiles 2>/dev/null || true)
@@ -201,7 +208,9 @@ compose() {
     "${profile_flags[@]}"
     "$@"
   )
-  printf '%b\n' "${BLUE}[stackctl][CMD]${RESET} ${full_cmd[*]}"
+  if [[ "$log_cmd" == true ]]; then
+    printf '%b\n' "${BLUE}[stackctl][CMD]${RESET} ${full_cmd[*]}"
+  fi
   "${full_cmd[@]}"
 }
 
@@ -368,7 +377,7 @@ cmd_health() {
   local extra=()
   if [[ ${#SERVICES[@]} -gt 0 ]]; then extra=("${SERVICES[@]}"); fi
   local ids
-  if ! ids=$(compose ps -q "${extra[@]}"); then
+  if ! ids=$(compose --no-log ps -q "${extra[@]}"); then
     warn "Failed to list containers."
     return 1
   fi
@@ -406,6 +415,99 @@ cmd_health() {
   done
 }
 
+cmd_endpoints() {
+  log "Published endpoints (mode: ${TARGET_MODE})..."
+
+  # If no profiles specified, load all available profiles so config includes everything.
+  local saved_profiles=("${PROFILES[@]}")
+  if [[ ${#PROFILES[@]} -eq 0 ]]; then
+    detect_compose
+    mapfile -t PROFILES < <("${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" -p "$PROJECT_NAME" config --profiles 2>/dev/null || true)
+  fi
+
+  local cfg
+  if ! cfg=$(compose --no-log config --format json); then
+    warn "Failed to read compose config."
+    return 1
+  fi
+  local filter=""
+  if [[ ${#SERVICES[@]} -gt 0 ]]; then
+    filter="${SERVICES[*]}"
+  fi
+  local py_script
+  py_script=$(cat <<'PY'
+import json, os, sys
+
+def guess_proto(host_port, container_port):
+    https_ports = {"443", "8443", "9443", "7443"}
+    if host_port and host_port in https_ports:
+        return "https"
+    if container_port:
+        base = container_port.split("/")[0]
+        if base in https_ports:
+            return "https"
+    return "http"
+
+try:
+    data = json.load(sys.stdin)
+except Exception as e:
+    sys.stderr.write(f"Failed to parse compose config: {e}\n")
+    sys.exit(1)
+
+services = data.get("services", {})
+if not services:
+    print("No services defined.")
+    sys.exit(0)
+
+filter_set = set()
+raw_filter = os.environ.get("STACKCTL_SERVICE_FILTER", "")
+if raw_filter:
+    for item in raw_filter.split():
+        filter_set.add(item)
+
+for name in sorted(services):
+    if filter_set and name not in filter_set:
+        continue
+    ports = services[name].get("ports") or []
+    print(f"{name}")
+    if not ports:
+        print("  (no published ports)")
+        continue
+    for port in ports:
+        proto = ""
+        host_ip = host_port = container_port = ""
+        if isinstance(port, dict):
+            container_port = str(port.get("target", ""))
+            host_port = str(port.get("published", "") or "")
+            host_ip = port.get("host_ip") or ""
+            proto = f"/{port.get('protocol')}" if port.get("protocol") else ""
+        else:
+            entry = str(port)
+            if "/" in entry:
+                entry, proto = entry.split("/", 1)
+                proto = f"/{proto}"
+            parts = entry.split(":")
+            if len(parts) == 3:
+                host_ip, host_port, container_port = parts
+            elif len(parts) == 2:
+                host_port, container_port = parts
+            elif len(parts) == 1:
+                container_port = parts[0]
+        host_label = "(internal only)"
+        if host_port:
+            display_host = host_ip if host_ip and host_ip not in ("0.0.0.0", "::") else "localhost"
+            scheme = guess_proto(host_port, container_port)
+            host_label = f"{scheme}://{display_host}:{host_port}"
+        target = container_port or "(container port n/a)"
+        print(f"  {host_label} -> {target}{proto}")
+PY
+)
+  STACKCTL_SERVICE_FILTER="$filter" python3 -c "$py_script" <<<"$cfg"
+
+  # Restore original profiles to avoid side effects
+  PROFILES=("${saved_profiles[@]}")
+}
+
 #############################################
 # Argument parsing
 #############################################
@@ -422,7 +524,7 @@ fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    start|restart|stop|rebuild|clean|logs|shell|info|status|health)
+    start|restart|stop|rebuild|clean|logs|shell|info|status|health|endpoints)
       if [[ -n "$CMD" ]]; then
         error "Multiple commands specified."
       fi
@@ -495,6 +597,7 @@ case "$CMD" in
   info)    cmd_info    ;;
   status)  cmd_status  ;;
   health)  cmd_health  ;;
+  endpoints) cmd_endpoints ;;
   *)       error "Unhandled command: $CMD" ;;
 esac
 
