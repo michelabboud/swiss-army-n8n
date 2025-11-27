@@ -21,9 +21,10 @@ from typing import Dict, List, Tuple
 from prompt_toolkit.application import Application
 from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout import HSplit, Layout
+from prompt_toolkit.layout import HSplit, Layout, Window
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame, TextArea
+from prompt_toolkit.widgets.base import FormattedTextControl
 
 ERR_PAT = re.compile(r"(ERROR|Error|error|CRIT|FATAL)")
 
@@ -355,7 +356,8 @@ def style_ports(text: str) -> Tuple[str, str]:
   return ("", text)
 
 
-def render_table(rows) -> str:
+def render_table_formatted(rows) -> FormattedText:
+  tokens: List[Tuple[str, str]] = []
   cid_w = 13
   svc_w = max(12, min(28, max(len(r["service"]) for r in rows) + 2)) if rows else 12
   state_w = 14
@@ -363,23 +365,30 @@ def render_table(rows) -> str:
   err_w = 12
   port_w = 16
   header = f"{'Container'.ljust(cid_w)}{'Service'.ljust(svc_w)}{'State'.ljust(state_w)}{'Health'.ljust(health_w)}{'Errors'.ljust(err_w)}{'Ports'.ljust(port_w)}"
-  lines = [header, "-" * len(header)]
-  for r in rows:
-    lines.append(
-      f"{r['cid'].ljust(cid_w)}"
-      f"{r['service'].ljust(svc_w)}"
-      f"{r['state'].ljust(state_w)}"
-      f"{r['health'].ljust(health_w)}"
-      f"{r['errors'].ljust(err_w)}"
-      f"{r['ports'].ljust(port_w)}"
-    )
-  return "\n".join(lines)
+  tokens.append(("", header))
+  tokens.append(("", "\n"))
+  tokens.append(("", "-" * len(header)))
+  tokens.append(("", "\n"))
+  for idx, r in enumerate(rows):
+    state_style = style_state(r["state"])[0]
+    health_style = style_health(r["health"])[0]
+    err_style = style_errors(r["errors"])[0]
+    port_style = style_ports(r["ports"])[0]
+    tokens.extend([
+      ("", r["cid"].ljust(cid_w)),
+      ("", r["service"].ljust(svc_w)),
+      (state_style, r["state"].ljust(state_w)),
+      (health_style, r["health"].ljust(health_w)),
+      (err_style, r["errors"].ljust(err_w)),
+      (port_style, r["ports"].ljust(port_w)),
+    ])
+    if idx != len(rows) - 1:
+      tokens.append(("", "\n"))
+  return FormattedText(tokens)
 
 def ansi_color(text: str, color: str) -> str:
-  code = {"green": "32", "yellow": "33", "red": "31"}.get(color, "")
-  if not code:
-    return text
-  return f"\033[{code}m{text}\033[0m"
+  code = {"green": "class:green", "yellow": "class:yellow", "red": "class:red"}.get(color, "")
+  return (code, text)
 
 
 class MonitorAppPT:
@@ -387,7 +396,8 @@ class MonitorAppPT:
     self.ctx = ctx
     self.log_cache: Dict[str, Dict] = {}
     self.header = TextArea(style="class:header", text=format_header(ctx), focusable=False, scrollbar=False)
-    self.body = TextArea(style="class:body", text="", focusable=False, scrollbar=True, wrap_lines=False)
+    self.body_control = FormattedTextControl(focusable=False, show_cursor=False)
+    self.body_window = Window(content=self.body_control, wrap_lines=False, dont_extend_width=True)
 
     kb = KeyBindings()
     @kb.add("q")
@@ -399,7 +409,7 @@ class MonitorAppPT:
 
     root_container = HSplit([
       Frame(self.header),
-      Frame(self.body),
+      Frame(self.body_window),
     ])
     self.style = Style.from_dict(
       {
@@ -423,30 +433,9 @@ class MonitorAppPT:
   async def refresh(self):
     now = time.time()
     rows = build_rows(self.ctx, self.log_cache, now)
-    table_text = render_table(rows)
-    # Apply simple ANSI colors
-    lines = table_text.splitlines()
-    if len(lines) >= 2:
-      colored_lines = [lines[0], lines[1]]
-      cid_w = 13
-      svc_w = max(12, min(28, max(len(r["service"]) for r in rows) + 2)) if rows else 12
-      state_w = 14
-      health_w = 12
-      err_w = 12
-      port_w = 16
-      for r in rows:
-        state_style, health_style, err_style, port_style = style_state(r["state"])[0], style_health(r["health"])[0], style_errors(r["errors"])[0], style_ports(r["ports"])[0]
-        colored_lines.append(
-          f"{r['cid'].ljust(cid_w)}"
-          f"{r['service'].ljust(svc_w)}"
-          f"{ansi_color(r['state'].ljust(state_w), state_style.replace('class:', ''))}"
-          f"{ansi_color(r['health'].ljust(health_w), health_style.replace('class:', ''))}"
-          f"{ansi_color(r['errors'].ljust(err_w), err_style.replace('class:', ''))}"
-          f"{ansi_color(r['ports'].ljust(port_w), port_style.replace('class:', ''))}"
-        )
-      table_text = "\n".join(colored_lines)
     self.header.text = format_header(self.ctx)
-    self.body.text = table_text
+    formatted = render_table_formatted(rows)
+    self.body_control.text = formatted
 
   async def run(self):
     self._running = True
