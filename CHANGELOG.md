@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.18] – 2025-11-27
+
+### Changed
+
+- Monitor help now explicitly lists `textual|prompt|basic|auto` for `--ui`, with dependency hints.
+
 ## [0.1.17] – 2025-11-27
 
 ### Added

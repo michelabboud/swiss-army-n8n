@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.17",
+    "version": "0.1.18",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -15,10 +15,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.17",
+      "version": "0.1.18",
       "date": "2025-11-27",
-      "title": "Split TUI requirements, shared venv installs",
-      "summary": "Separate requirements files for Textual and prompt_toolkit; installers use the shared venv and respect the requirement files."
+      "title": "Clarify UI options in monitor usage",
+      "summary": "Help text now lists textual|prompt|basic|auto explicitly with dependency hints."
     }
   }
 }

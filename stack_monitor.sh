@@ -36,7 +36,7 @@ Options:
   -p, --project-name NAME Project name override (env: STACK_MON_PROJECT)
   --metadata FILE         Metadata file (env: STACKCTL_METADATA_FILE) [default: metadata.json]
   --probe-ports [on|off]  Enable/disable port reachability probes (env: STACK_MON_PROBE_PORTS, default: auto)
-  --ui MODE               UI: textual|basic|auto (default: auto; requires 'textual' for textual)
+  --ui MODE               UI: textual|prompt|basic|auto (default: auto; requires 'textual' or 'prompt_toolkit' for those UIs)
   --install-textual       Install textual into a local venv (default: .venv_stack_monitor)
   --install-prompt        Install prompt_toolkit into a local venv (default: .venv_stack_monitor)
   -h, --help              Show this help

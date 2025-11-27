@@ -23,7 +23,7 @@ This repo contains:
   - `STACK.md` – services and profiles
   - `ARCHITECTURE.md` – how the pieces fit together
 
-Script version: **v0.1.16**
+Script version: **v0.1.18**
 
 ---
 
