@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.8] – 2025-11-27
+
+### Changed
+
+- Compose `restart:` entries are commented out so manual start/stop is the baseline when running docker compose directly.
+- Default restart policy is now `on-failure` via metadata/env (`compose.default_restart_policy` or `STACKCTL_DEFAULT_RESTART_POLICY`); `--restart-policy` still overrides per stack/profile/service.
+- `stackctl.sh --info` reports both the active and default restart policies for clarity.
+
 ## [0.1.6] – 2025-11-27
 
 ### Added

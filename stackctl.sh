@@ -16,7 +16,7 @@ set -Eeuo pipefail
 # --- Defaults (overridden by metadata.json when possible) ---
 STACK_NAME_DEFAULT="Swiss Army Stack"
 STACK_SLUG_DEFAULT="swiss-army-stack"
-STACK_VERSION_DEFAULT="0.1.6"
+STACK_VERSION_DEFAULT="0.1.8"
 
 COMPOSE_FILE_DEFAULT="${COMPOSE_FILE_DEFAULT:-docker-compose.yml}"
 PROJECT_NAME_DEFAULT="${PROJECT_NAME_DEFAULT:-swiss-army-stack}"
@@ -38,6 +38,7 @@ SERVICES=()
 FORWARDED_ARGS=()
 COMPOSE_OVERRIDES=()
 RESTART_OVERRIDE_FILE=""
+RESTART_POLICY_DEFAULT="inherit"
 RESTART_POLICY_MODE="inherit"
 
 # Colors (only if stdout is a TTY)
@@ -107,6 +108,12 @@ load_metadata() {
     PROJECT_NAME_DEFAULT="$v"
     PROJECT_NAME="$PROJECT_NAME_DEFAULT"
   fi
+
+  v=$(jq -r '.compose.default_restart_policy // empty' "$METADATA_FILE" 2>/dev/null || true)
+  if [[ -n "$v" && "$v" != "null" ]]; then
+    set_restart_policy_mode "$v"
+    RESTART_POLICY_DEFAULT="$RESTART_POLICY_MODE"
+  fi
 }
 
 #############################################
@@ -143,7 +150,8 @@ Target selection:
 Global options:
   -f, --file FILE         Compose file (default: ${COMPOSE_FILE_DEFAULT})
   -p, --project-name NAME Project name (default: ${PROJECT_NAME_DEFAULT})
-  --restart-policy MODE   Override restart policy for target: inherit|auto|manual|always|on-failure (env: STACKCTL_RESTART_POLICY)
+  --restart-policy MODE   Override restart policy: inherit|auto|manual|always|on-failure
+                          (env: STACKCTL_RESTART_POLICY; default from metadata compose.default_restart_policy or STACKCTL_DEFAULT_RESTART_POLICY)
   --version               Show stack version (from metadata.json)
   -h, --help              Show this help
 
@@ -557,6 +565,7 @@ cmd_info() {
   printf '  %sStack version:%s    %s\n' "$BOLD" "$RESET" "$STACK_VERSION"
   printf '  %sProject name:%s     %s\n' "$BOLD" "$RESET" "$PROJECT_NAME"
   printf '  %sCompose file:%s     %s\n' "$BOLD" "$RESET" "$COMPOSE_FILE"
+  printf '  %sRestart policy:%s   %s (default: %s)\n' "$BOLD" "$RESET" "$RESTART_POLICY_MODE" "$RESTART_POLICY_DEFAULT"
   printf '  %sTarget mode:%s      %s\n' "$BOLD" "$RESET" "$TARGET_MODE"
 
   if [[ ${#PROFILES[@]} -gt 0 ]]; then
@@ -663,6 +672,11 @@ CMD=""
 
 # Load metadata before parsing args so defaults reflect metadata.json
 load_metadata
+
+if [[ -n "${STACKCTL_DEFAULT_RESTART_POLICY:-}" ]]; then
+  set_restart_policy_mode "$STACKCTL_DEFAULT_RESTART_POLICY"
+  RESTART_POLICY_DEFAULT="$RESTART_POLICY_MODE"
+fi
 
 if [[ -n "${STACKCTL_RESTART_POLICY:-}" ]]; then
   set_restart_policy_mode "$STACKCTL_RESTART_POLICY"

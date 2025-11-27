@@ -2,22 +2,23 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.6",
+    "version": "0.1.8",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
     "file": "docker-compose.yml",
-    "project_name_default": "swiss-army-stack"
+    "project_name_default": "swiss-army-stack",
+    "default_restart_policy": "on-failure"
   },
   "control": {
     "script": "stackctl.sh"
   },
   "changelog": {
     "last": {
-      "version": "0.1.6",
+      "version": "0.1.8",
       "date": "2025-11-27",
-      "title": "Improve endpoints display and post-start hints",
-      "summary": "Endpoints now render two-up, and start/restart print relevant published endpoints automatically."
+      "title": "Default on-failure restart with override controls",
+      "summary": "Restart policies are commented out by default, metadata/env set the default (now on-failure), and stackctl can override per stack/profile/service."
     }
   }
 }
