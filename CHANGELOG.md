@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.29] – 2025-11-27
+
+### Fixed
+
+- Basic monitor header wrapping is now handled in the Python monitor (removed stray bash locals), keeping the two-column separator.
+
 ## [0.1.28] – 2025-11-27
 
 ### Changed

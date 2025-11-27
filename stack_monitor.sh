@@ -339,6 +339,7 @@ import socket
 import subprocess
 import sys
 import time
+import textwrap
 
 ERR_PAT = re.compile(r"(ERROR|Error|error|CRIT|FATAL)")
 ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
@@ -677,21 +678,28 @@ def main():
     probe_enabled = any(port_map.get(svc) for svc in services)
 
   log_cache = {}
-  local sep_line
-  sep_line=$(printf '=%.0s' $(seq 1 84))
-  header_static=()
-  header_static+=("${stack_name} (${stack_slug}) v${stack_ver}")
-  header_static+=("project: ${project:-'-'} | compose: ${compose_file}")
-  header_static+=("$sep_line")
-  while IFS= read -r line; do header_static+=("$line"); done < <(wrap_text "profiles: ${profiles[*]:-(none)}" 84)
-  while IFS= read -r line; do header_static+=("$line"); done < <(wrap_text "services: ${services[*]:-(none)}" 84)
-  header_static+=("$sep_line")
-  header_static+=("refresh: ${refresh}s")
-  probe_label=$([ "$probe_enabled" = true ] && echo "on" || echo "off")
-  header_static+=("port probing: ${probe_label}")
-  header_static+=("metadata: ${metadata_path}")
-  header_static+=("")
-  header_static+=("keys: q quit, r refresh")
+  sep_line = "=" * 84
+  def wrap_line(prefix, items):
+    text = ", ".join(items) if items else "(none)"
+    first = f"{prefix}: "
+    return textwrap.wrap(
+      text,
+      width=84,
+      initial_indent=first,
+      subsequent_indent=" " * len(first),
+    )
+  header_static = []
+  header_static.append(f"{stack_name} ({stack_slug}) v{stack_ver}")
+  header_static.append(f"project: {project or '-'} | compose: {compose_file}")
+  header_static.append(sep_line)
+  header_static.extend(wrap_line("profiles", profiles))
+  header_static.extend(wrap_line("services", services))
+  header_static.append(sep_line)
+  header_static.append(f"refresh: {refresh}s")
+  header_static.append(f"port probing: {'on' if probe_enabled else 'off'}")
+  header_static.append(f"metadata: {metadata_path}")
+  header_static.append("")
+  header_static.append("keys: q quit, r refresh")
 
   order = service_order(service_meta, services) or services
 
