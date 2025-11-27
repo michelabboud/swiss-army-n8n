@@ -36,6 +36,9 @@ TARGET_MODE="all"   # all | profile | service
 PROFILES=()
 SERVICES=()
 FORWARDED_ARGS=()
+COMPOSE_OVERRIDES=()
+RESTART_OVERRIDE_FILE=""
+RESTART_POLICY_MODE="inherit"
 
 # Colors (only if stdout is a TTY)
 if [[ -t 1 ]]; then
@@ -54,6 +57,12 @@ warn()  { printf '%b\n' "${YELLOW}[stackctl][WARN]${RESET} $*" >&2; }
 error() { printf '%b\n' "${RED}[stackctl][ERROR]${RESET} $*" >&2; exit 1; }
 
 trap 'error "Command failed (exit $?) at line $LINENO."' ERR
+cleanup() {
+  if [[ -n "$RESTART_OVERRIDE_FILE" && -f "$RESTART_OVERRIDE_FILE" ]]; then
+    rm -f "$RESTART_OVERRIDE_FILE"
+  fi
+}
+trap cleanup EXIT
 
 #############################################
 # metadata.json handling
@@ -134,6 +143,7 @@ Target selection:
 Global options:
   -f, --file FILE         Compose file (default: ${COMPOSE_FILE_DEFAULT})
   -p, --project-name NAME Project name (default: ${PROJECT_NAME_DEFAULT})
+  --restart-policy MODE   Override restart policy for target: inherit|auto|manual|always|on-failure (env: STACKCTL_RESTART_POLICY)
   --version               Show stack version (from metadata.json)
   -h, --help              Show this help
 
@@ -143,6 +153,9 @@ Examples:
 
   # Start core + images profiles
   stackctl.sh start --profile core --profile images
+
+  # Disable auto-restart for the core profile
+  stackctl.sh start --profile core --restart-policy manual
 
   # Restart only n8n and postgres
   stackctl.sh restart --service n8n,postgres
@@ -180,6 +193,107 @@ detect_compose() {
   error "Neither 'docker compose' nor 'docker-compose' found."
 }
 
+set_restart_policy_mode() {
+  local raw="${1,,}"
+  case "$raw" in
+    ""|inherit|keep|default)
+      RESTART_POLICY_MODE="inherit"
+      ;;
+    manual|off|no|disabled)
+      RESTART_POLICY_MODE="no"
+      ;;
+    auto|unless-stopped)
+      RESTART_POLICY_MODE="unless-stopped"
+      ;;
+    always)
+      RESTART_POLICY_MODE="always"
+      ;;
+    on-failure|onfailure)
+      RESTART_POLICY_MODE="on-failure"
+      ;;
+    *)
+      error "Invalid restart policy '$1'. Use: inherit|auto|manual|always|on-failure."
+      ;;
+  esac
+}
+
+ensure_profile_selection() {
+  if [[ "$TARGET_MODE" != "all" || ${#PROFILES[@]} -ne 0 || ${#SERVICES[@]} -ne 0 ]]; then
+    return
+  fi
+  detect_compose
+  local -a _auto_profiles=()
+  mapfile -t _auto_profiles < <("${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" -p "$PROJECT_NAME" config --profiles 2>/dev/null || true)
+  if [[ "${#_auto_profiles[@]}" -gt 0 ]]; then
+    PROFILES=("${_auto_profiles[@]}")
+  fi
+}
+
+list_target_services() {
+  ensure_profile_selection
+  if [[ ${#SERVICES[@]} -gt 0 ]]; then
+    printf '%s\n' "${SERVICES[@]}"
+    return 0
+  fi
+
+  detect_compose
+  local -a profile_flags=()
+  for p in "${PROFILES[@]}"; do
+    profile_flags+=(--profile "$p")
+  done
+
+  local services_out
+  services_out=$("${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" -p "$PROJECT_NAME" "${profile_flags[@]}" config --services 2>/dev/null || true)
+  if [[ -z "$services_out" ]]; then
+    warn "Could not resolve services for restart override."
+    return 0
+  fi
+
+  while IFS= read -r svc; do
+    [[ -z "$svc" ]] && continue
+    printf '%s\n' "$svc"
+  done <<<"$services_out"
+}
+
+prepare_restart_override() {
+  COMPOSE_OVERRIDES=()
+  RESTART_OVERRIDE_FILE=""
+
+  if [[ "$RESTART_POLICY_MODE" == "inherit" ]]; then
+    return
+  fi
+
+  local policy="$RESTART_POLICY_MODE"
+  local mapped=""
+  case "$policy" in
+    no) mapped="no" ;;
+    unless-stopped) mapped="unless-stopped" ;;
+    always) mapped="always" ;;
+    on-failure) mapped="on-failure" ;;
+    *)
+      error "Unhandled restart policy mode: $policy"
+      ;;
+  esac
+
+  local -a _target_services=()
+  mapfile -t _target_services < <(list_target_services)
+  if [[ "${#_target_services[@]}" -eq 0 ]]; then
+    warn "Restart policy override requested but no services matched current scope."
+    return
+  fi
+
+  RESTART_OVERRIDE_FILE=$(mktemp "${TMPDIR:-/tmp}/stackctl_restart_override.XXXXXX.yml")
+  {
+    echo "services:"
+    for svc in "${_target_services[@]}"; do
+      echo "  ${svc}:"
+      echo "    restart: ${mapped}"
+    done
+  } >"$RESTART_OVERRIDE_FILE"
+  COMPOSE_OVERRIDES=(-f "$RESTART_OVERRIDE_FILE")
+  log "Using restart policy '${mapped}' for services: ${_target_services[*]}"
+}
+
 compose() {
   detect_compose
 
@@ -189,13 +303,7 @@ compose() {
     shift
   fi
 
-  # If no profiles/services specified, auto-enable all compose profiles so "start" works out-of-the-box.
-  if [[ "$TARGET_MODE" == "all" && "${#PROFILES[@]}" -eq 0 && "${#SERVICES[@]}" -eq 0 ]]; then
-    mapfile -t _auto_profiles < <("${DOCKER_COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" -p "$PROJECT_NAME" config --profiles 2>/dev/null || true)
-    if [[ "${#_auto_profiles[@]}" -gt 0 ]]; then
-      PROFILES=("${_auto_profiles[@]}")
-    fi
-  fi
+  ensure_profile_selection
 
   local profile_flags=()
   for p in "${PROFILES[@]}"; do
@@ -204,6 +312,7 @@ compose() {
   local full_cmd=(
     "${DOCKER_COMPOSE_CMD[@]}"
     -f "$COMPOSE_FILE"
+    "${COMPOSE_OVERRIDES[@]}"
     -p "$PROJECT_NAME"
     "${profile_flags[@]}"
     "$@"
@@ -347,6 +456,7 @@ ensure_command_set() {
 
 cmd_start() {
   log "Starting services (mode: ${TARGET_MODE})..."
+  prepare_restart_override
   local extra=()
   if [[ ${#SERVICES[@]} -gt 0 ]]; then extra=("${SERVICES[@]}"); fi
   compose up -d "${extra[@]}" "${FORWARDED_ARGS[@]}"
@@ -360,9 +470,14 @@ cmd_start() {
 
 cmd_restart() {
   log "Restarting services (mode: ${TARGET_MODE})..."
+  prepare_restart_override
   local extra=()
   if [[ ${#SERVICES[@]} -gt 0 ]]; then extra=("${SERVICES[@]}"); fi
-  compose restart "${extra[@]}" "${FORWARDED_ARGS[@]}"
+  if [[ "$RESTART_POLICY_MODE" != "inherit" ]]; then
+    compose up -d --force-recreate "${extra[@]}" "${FORWARDED_ARGS[@]}"
+  else
+    compose restart "${extra[@]}" "${FORWARDED_ARGS[@]}"
+  fi
   log "Endpoints for restarted scope:"
   if [[ ${#extra[@]} -gt 0 ]]; then
     print_endpoints "${extra[*]}"
@@ -380,6 +495,7 @@ cmd_stop() {
 
 cmd_rebuild() {
   log "Rebuilding images and starting services (mode: ${TARGET_MODE})..."
+  prepare_restart_override
   local extra=()
   if [[ ${#SERVICES[@]} -gt 0 ]]; then extra=("${SERVICES[@]}"); fi
   compose up -d --build "${extra[@]}" "${FORWARDED_ARGS[@]}"
@@ -548,6 +664,10 @@ CMD=""
 # Load metadata before parsing args so defaults reflect metadata.json
 load_metadata
 
+if [[ -n "${STACKCTL_RESTART_POLICY:-}" ]]; then
+  set_restart_policy_mode "$STACKCTL_RESTART_POLICY"
+fi
+
 if [[ $# -eq 0 ]]; then
   usage
   exit 0
@@ -593,6 +713,12 @@ while [[ $# -gt 0 ]]; do
       shift
       [[ $# -gt 0 ]] || error "--project-name requires value"
       PROJECT_NAME="$1"
+      shift
+      ;;
+    --restart-policy)
+      shift
+      [[ $# -gt 0 ]] || error "--restart-policy requires value"
+      set_restart_policy_mode "$1"
       shift
       ;;
     --version)
