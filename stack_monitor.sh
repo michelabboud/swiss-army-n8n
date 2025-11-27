@@ -504,6 +504,9 @@ def render(rows, header_lines, tty):
   print(header)
   print("-" * min(cols, len(header)))
   for r in rows:
+    if r.get("is_group"):
+      print(f"[{r['label']}]")
+      continue
     print(
       f"{pad_field(r['cid_disp'], cid_w)}"
       f"{pad_field(r['service_disp'], svc_w)}"
@@ -541,6 +544,42 @@ def build_ports_map(cfg):
           host_ports.append((host or "localhost", int(pub)))
     port_map[name] = host_ports
   return port_map
+
+def build_service_meta(cfg):
+  """Return ordered list of (service, profiles) from compose config json."""
+  out = []
+  services = cfg.get("services", {}) if isinstance(cfg, dict) else {}
+  for name, data in services.items():
+    profs = data.get("profiles") or []
+    out.append({"name": name, "profiles": profs})
+  return out
+
+def group_rows(rows, service_meta, profiles):
+  # Determine profile order
+  profile_order = profiles[:] if profiles else []
+  # Collect groups
+  meta_by_name = {m["name"]: m for m in service_meta}
+  groups = {}
+  order = []
+  for row in rows:
+    meta = meta_by_name.get(row["service"], {})
+    svc_profiles = meta.get("profiles") or []
+    group = None
+    for p in svc_profiles:
+      if not profile_order or p in profile_order:
+        group = p
+        break
+    if group is None:
+      group = "(no-profile)"
+    if group not in groups:
+      groups[group] = []
+      order.append(group)
+    groups[group].append(row)
+  grouped = []
+  for g in order:
+    grouped.append({"is_group": True, "label": g})
+    grouped.extend(groups[g])
+  return grouped
 
 def main():
   tty = sys.stdout.isatty()
@@ -588,6 +627,7 @@ def main():
 
   cfg_json = compose_config_json(base_cmd)
   port_map = build_ports_map(cfg_json) if cfg_json else {}
+  service_meta = build_service_meta(cfg_json) if cfg_json else []
 
   probe_setting = os.environ.get("STACK_MON_PROBE_PORTS", "auto").lower()
   probe_enabled = True
@@ -646,9 +686,14 @@ def main():
           "cid": cid[:12] if cid else "-",
         }
       )
+    rows = group_rows(rows, service_meta, profiles)
 
     # Colorize based on state/health/errors
     for r in rows:
+      if r.get("is_group"):
+        label = r["label"]
+        print(label.upper())
+        continue
       state = r["state"]
       health = r["health"]
       err = r["errors"]

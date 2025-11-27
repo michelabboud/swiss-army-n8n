@@ -16,6 +16,7 @@ import socket
 import subprocess
 import sys
 import time
+import textwrap
 from typing import Dict, List, Tuple
 
 from prompt_toolkit.application import Application
@@ -262,15 +263,39 @@ def build_context():
 
 
 def format_header(ctx) -> str:
-  profiles_label = ",".join(ctx["profiles"]) if ctx["profiles"] else "(none)"
-  services_label = ",".join(ctx["services"]) if ctx["services"] else "(none)"
   port_label = "on" if ctx["probe_ports_enabled"] else "off"
-  return (
-    f"{ctx['stack_name']} ({ctx['stack_slug']}) v{ctx['stack_version']}\n"
-    f"project: {ctx['project'] or '-'} | compose: {ctx['compose_file']}\n"
-    f"profiles: {profiles_label} | services: {services_label}\n"
-    f"refresh: {ctx['refresh']}s | metadata: {ctx['metadata_path']} | port probing: {port_label}\n"
-    "keys: q quit, r refresh"
+  line1 = f"{ctx['stack_name']} ({ctx['stack_slug']}) v{ctx['stack_version']}"
+  line2 = f"project: {ctx['project'] or '-'} | compose: {ctx['compose_file']}"
+  sep_len = max(len(line1), len(line2), 60)
+
+  def wrap_list(label: str, items: List[str]) -> str:
+    if not items:
+      return f"{label}: (none)"
+    text = ", ".join(items)
+    first = f"{label}: "
+    return textwrap.fill(
+      text,
+      width=sep_len,
+      initial_indent=first,
+      subsequent_indent=" " * len(first),
+    )
+
+  profiles_line = wrap_list("profiles", ctx["profiles"])
+  services_line = wrap_list("services", ctx["services"])
+
+  return "\n".join(
+    [
+      line1,
+      line2,
+      "=" * sep_len,
+      profiles_line,
+      services_line,
+      f"refresh: {ctx['refresh']}s",
+      f"port probing: {port_label}",
+      f"metadata: {ctx['metadata_path']}",
+      "",
+      "keys: q quit, r refresh",
+    ]
   )
 
 
@@ -370,6 +395,11 @@ def render_table_formatted(rows) -> FormattedText:
   tokens.append(("", "-" * len(header)))
   tokens.append(("", "\n"))
   for idx, r in enumerate(rows):
+    if r.get("group"):
+      tokens.append(("class:yellow", f"[{r['group']}]"))
+      if idx != len(rows) - 1:
+        tokens.append(("", "\n"))
+      continue
     state_style = style_state(r["state"])[0]
     health_style = style_health(r["health"])[0]
     err_style = style_errors(r["errors"])[0]
@@ -433,6 +463,26 @@ class MonitorAppPT:
   async def refresh(self):
     now = time.time()
     rows = build_rows(self.ctx, self.log_cache, now)
+    # Group rows by profile keeping compose order
+    profile_order = self.ctx["profiles"][:] if self.ctx["profiles"] else []
+    meta_by_name = {m["name"]: m["profiles"] if isinstance(m, dict) else m for m in []}
+    grouped = []
+    seen_groups = []
+    # We don't have explicit service meta here; rows already follow compose order
+    for r in rows:
+      svc_profs = []  # no meta mapping available; leave blank
+      group = None
+      for p in svc_profs:
+        if not profile_order or p in profile_order:
+          group = p
+          break
+      if group is None:
+        group = "(no-profile)"
+      if group not in seen_groups:
+        grouped.append({"group": group})
+        seen_groups.append(group)
+      grouped.append(r)
+    rows = grouped
     self.header.text = format_header(self.ctx)
     formatted = render_table_formatted(rows)
     self.body_control.text = formatted

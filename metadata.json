@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.20",
+    "version": "0.1.21",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -15,10 +15,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.20",
+      "version": "0.1.21",
       "date": "2025-11-27",
-      "title": "Prompt UI colors and compact headers",
-      "summary": "Prompt UI uses a proper style and ANSI coloring; headers are compact for better readability."
+      "title": "Compact header layout",
+      "summary": "Prompt and Textual monitors now use wrapped profile/service lists with separators for improved readability."
     }
   }
 }

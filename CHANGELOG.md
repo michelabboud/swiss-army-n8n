@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.21] – 2025-11-27
+
+### Changed
+
+- Prompt and Textual monitors use wrapped, multi-line headers for profiles/services with a separator for readability. Functionality unchanged.
+
 ## [0.1.20] – 2025-11-27
 
 ### Changed

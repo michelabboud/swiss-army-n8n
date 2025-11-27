@@ -19,6 +19,7 @@ import time
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
+import textwrap
 from rich.text import Text
 from textual import events
 from textual.app import App, ComposeResult
@@ -196,6 +197,14 @@ def build_ports_map(cfg: Dict) -> Dict[str, List[Tuple[str, int]]]:
     port_map[name] = host_ports
   return port_map
 
+def build_service_meta(cfg: Dict) -> List[Tuple[str, List[str]]]:
+  meta: List[Tuple[str, List[str]]] = []
+  services = cfg.get("services", {}) if isinstance(cfg, dict) else {}
+  for name, data in services.items():
+    profs = data.get("profiles") or []
+    meta.append((name, profs))
+  return meta
+
 
 @dataclass
 class ComposeContext:
@@ -207,6 +216,7 @@ class ComposeContext:
   profiles: List[str]
   services: List[str]
   port_map: Dict[str, List[Tuple[str, int]]]
+  service_meta: List[Tuple[str, List[str]]]
   base_cmd: List[str]
   refresh: float
   probe_ports_enabled: bool
@@ -249,6 +259,7 @@ def build_context() -> ComposeContext:
 
   cfg_json = compose_config_json(base_cmd)
   port_map = build_ports_map(cfg_json) if cfg_json else {}
+  service_meta = build_service_meta(cfg_json) if cfg_json else []
 
   probe_setting = os.environ.get("STACK_MON_PROBE_PORTS", "auto").lower()
   probe_enabled = True
@@ -270,6 +281,7 @@ def build_context() -> ComposeContext:
     profiles=profiles,
     services=services,
     port_map=port_map,
+    service_meta=service_meta,
     base_cmd=base_cmd,
     refresh=refresh,
     probe_ports_enabled=probe_enabled,
@@ -324,13 +336,39 @@ class MonitorApp(App):
     self.refresh_data()
 
   def _format_header(self) -> str:
-    profiles_label = ",".join(self.ctx.profiles) if self.ctx.profiles else "(none)"
-    services_label = ",".join(self.ctx.services) if self.ctx.services else "(none)"
     port_label = "on" if self.ctx.probe_ports_enabled else "off"
-    return (
-      f"{self.ctx.stack_name} ({self.ctx.stack_slug}) v{self.ctx.stack_version} | project: {self.ctx.project or '-'}\n"
-      f"compose: {self.ctx.compose_file} | profiles: {profiles_label} | services: {services_label}\n"
-      f"refresh: {self.ctx.refresh}s | metadata: {self.ctx.metadata_path} | port probing: {port_label}"
+    line1 = f"{self.ctx.stack_name} ({self.ctx.stack_slug}) v{self.ctx.stack_version}"
+    line2 = f"project: {self.ctx.project or '-'} | compose: {self.ctx.compose_file}"
+    sep_len = max(len(line1), len(line2), 60)
+
+    def wrap_list(label: str, items: List[str]) -> str:
+      if not items:
+        return f"{label}: (none)"
+      text = ", ".join(items)
+      first = f"{label}: "
+      return textwrap.fill(
+        text,
+        width=sep_len,
+        initial_indent=first,
+        subsequent_indent=" " * len(first),
+      )
+
+    profiles_line = wrap_list("profiles", self.ctx.profiles)
+    services_line = wrap_list("services", self.ctx.services)
+
+    return "\n".join(
+      [
+        line1,
+        line2,
+        "=" * sep_len,
+        profiles_line,
+        services_line,
+        f"refresh: {self.ctx.refresh}s",
+        f"port probing: {port_label}",
+        f"metadata: {self.ctx.metadata_path}",
+        "",
+        "keys: q quit, r refresh",
+      ]
     )
 
   def _row_styles(self, state: str, health: str, err: str, ports: str) -> Tuple[str, str, str, str]:
@@ -378,7 +416,10 @@ class MonitorApp(App):
 
     rows = []
     now = time.time()
-    for svc in self.ctx.services:
+    service_order = [name for name, _ in self.ctx.service_meta] if self.ctx.service_meta else self.ctx.services
+    for svc in service_order:
+      if svc not in self.ctx.services:
+        continue
       cid = get_container_id(self.ctx.base_cmd, svc)
       if not cid:
         state = "down"
@@ -416,10 +457,38 @@ class MonitorApp(App):
         }
       )
 
+    profile_order = self.ctx.profiles[:] if self.ctx.profiles else []
+    meta_by_name = {n: profs for n, profs in self.ctx.service_meta}
+    grouped_rows = []
+    seen_groups = []
+    for r in rows:
+      svc_profs = meta_by_name.get(r["service"], [])
+      group = None
+      for p in svc_profs:
+        if not profile_order or p in profile_order:
+          group = p
+          break
+      if group is None:
+        group = "(no-profile)"
+      if group not in seen_groups:
+        grouped_rows.append({"group": group})
+        seen_groups.append(group)
+      grouped_rows.append(r)
+
     self.table.clear()
     if not self.table.columns:
       self.table.add_columns("Container", "Service", "State", "Health", "Errors", "Ports")
-    for r in rows:
+    for r in grouped_rows:
+      if "group" in r:
+        self.table.add_row(
+          Text(f"[{r['group']}]", style="bold yellow"),
+          Text(""),
+          Text(""),
+          Text(""),
+          Text(""),
+          Text(""),
+        )
+        continue
       state_style, health_style, err_style, port_style = self._row_styles(r["state"], r["health"], r["errors"], r["ports"])
       self.table.add_row(
         Text(r["cid"]),
