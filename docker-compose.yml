@@ -335,7 +335,9 @@ services:
     profiles: ["monitoring"]
     ports:
       - "9090:9090"
-    # TODO: mount prometheus.yml and add scrape targets
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./data/prometheus:/prometheus
     networks:
       - core
 
@@ -369,6 +371,50 @@ services:
     volumes:
       - ./data/uptime-kuma:/app/data
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - core
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    pid: host
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - core
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - core
+
+  promtail:
+    image: grafana/promtail:latest
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./promtail/config.yml:/etc/promtail/config.yml:ro
+      - ./data/promtail:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
     networks:
       - core
 

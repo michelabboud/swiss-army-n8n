@@ -190,12 +190,15 @@ Services:
 - `prometheus` – metrics collection
 - `grafana` – dashboards
 - `loki` – log aggregation backend
+- `node-exporter` – host metrics exporter
+- `cadvisor` – container metrics exporter
+- `promtail` – ships container logs to Loki
 - `uptime-kuma` – synthetic monitoring / uptime checks
 
 Notes:
 
-- Prometheus is currently started with default config; you should mount a `prometheus.yml` to scrape n8n and friends.
-- Loki uses the built-in local config; wire log shippers later (e.g., Promtail).
+- Prometheus now mounts `./prometheus/prometheus.yml` and persists to `./data/prometheus`; add scrape jobs as needed.
+- Promtail tails Docker logs via `docker.sock` and pushes to Loki.
 - Uptime Kuma can monitor:
   - HTTP endpoints
   - TCP ports
@@ -214,8 +217,8 @@ Services:
 - `weaviate` – vector DB / semantic graph DB
 - `litellm` *(profile: ai-gateway)* – OpenAI-compatible proxy pointing to Ollama (`litellm:4000`)
 - `flowise` *(profile: agents)* – visual agent/orchestration builder (`flowise:3002`)
-- `vllm` *(profile: vllm)* – OpenAI-compatible server running `facebook/opt-125m` on CPU (`vllm:8008`)
-- `tgi` *(profile: tgi)* – Hugging Face text-generation-inference with `sshleifer/tiny-gpt2` (`tgi:8085`)
+- `vllm` *(profile: vllm, commented in compose)* – OpenAI-compatible server (enable with beefier GPU)
+- `tgi` *(profile: tgi, commented in compose)* – Hugging Face text-generation-inference (enable with beefier GPU)
 - `embeddings-api` *(profile: embeddings)* – text-embeddings-inference with `sentence-transformers/all-MiniLM-L6-v2` (`embeddings-api:8086`)
 
 Patterns:

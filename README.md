@@ -14,7 +14,7 @@ This repo contains:
   - ffmpeg/Whisper wrappers (placeholders), Tdarr
   - Elasticsearch, Meilisearch, ClickHouse
   - Keycloak
-  - Prometheus, Grafana, Loki, Uptime Kuma
+  - Prometheus, Grafana, Loki, Uptime Kuma, node-exporter, cAdvisor, Promtail
   - Ollama, Qdrant, Weaviate
   - LiteLLM proxy, Flowise agents, (commented) vLLM, (commented) TGI, Embeddings API
 - A **Swiss-army control script**: `stackctl.sh`
@@ -23,7 +23,7 @@ This repo contains:
   - `STACK.md` – services and profiles
   - `ARCHITECTURE.md` – how the pieces fit together
 
-Script version: **v0.1.4**
+Script version: **v0.1.5**
 
 ---
 

@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.5] – 2025-11-27
+
+### Added
+
+- Prometheus now mounts `prometheus.yml` and persists to `./data/prometheus`.
+- Monitoring agents: `node-exporter` (host metrics), `cadvisor` (container metrics), `promtail` (ships Docker logs to Loki) with `monitoring` profile.
+- Configs added under `prometheus/` and `promtail/` for scrapes and log shipping.
+
+### Changed
+
+- `promtail` tails Docker logs via `docker.sock` and pushes to `loki:3100`.
+
 ## [0.1.4] – 2025-11-27
 
 ### Added
