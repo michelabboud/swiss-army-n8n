@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.25",
+    "version": "0.1.26",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -15,10 +15,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.25",
+      "version": "0.1.26",
       "date": "2025-11-27",
-      "title": "Two-column wrapped headers",
-      "summary": "Monitor headers now show profiles and services in two wrapped columns for readability alongside grouped-by-profile tables."
+      "title": "Two-column service grids",
+      "summary": "Prompt and Textual monitors now render service tables in two columns with profile grouping and compose order; basic monitor remains single-column."
     }
   }
 }

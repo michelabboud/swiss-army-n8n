@@ -459,31 +459,54 @@ def render_table_formatted(rows) -> FormattedText:
   health_w = 12
   err_w = 12
   port_w = 16
-  header = f"{'Container'.ljust(cid_w)}{'Service'.ljust(svc_w)}{'State'.ljust(state_w)}{'Health'.ljust(health_w)}{'Errors'.ljust(err_w)}{'Ports'.ljust(port_w)}"
-  tokens.append(("", header))
-  tokens.append(("", "\n"))
-  tokens.append(("", "-" * len(header)))
-  tokens.append(("", "\n"))
-  for idx, r in enumerate(rows):
+  line_w = cid_w + svc_w + state_w + health_w + err_w + port_w
+
+  def row_tokens(r):
     if r.get("group"):
-      tokens.append(("class:yellow", f"[{r['group']}]"))
-      if idx != len(rows) - 1:
-        tokens.append(("", "\n"))
-      continue
+      label = f"[{r['group']}]"
+      return [("class:yellow", label.ljust(line_w))]
     state_style = style_state(r["state"])[0]
     health_style = style_health(r["health"])[0]
     err_style = style_errors(r["errors"])[0]
     port_style = style_ports(r["ports"])[0]
-    tokens.extend([
+    return [
       ("", r["cid"].ljust(cid_w)),
       ("", r["service"].ljust(svc_w)),
       (state_style, r["state"].ljust(state_w)),
       (health_style, r["health"].ljust(health_w)),
       (err_style, r["errors"].ljust(err_w)),
       (port_style, r["ports"].ljust(port_w)),
-    ])
-    if idx != len(rows) - 1:
+    ]
+
+  header = [
+    ("", f"{'Container'.ljust(cid_w)}{'Service'.ljust(svc_w)}{'State'.ljust(state_w)}{'Health'.ljust(health_w)}{'Errors'.ljust(err_w)}{'Ports'.ljust(port_w)}")
+  ]
+  header_sep = [("", "-" * line_w)]
+  data_rows = [row_tokens(r) for r in rows]
+
+  mid = (len(data_rows) + 1) // 2
+  left_rows = data_rows[:mid]
+  right_rows = data_rows[mid:]
+  max_len = max(len(left_rows), len(right_rows))
+  left_rows += [[("", "")]] * (max_len - len(left_rows))
+  right_rows += [[("", "")]] * (max_len - len(right_rows))
+
+  for i in range(max_len):
+    if i == 0:
+      tokens.extend(header)
+      tokens.append(("", "  "))
+      tokens.extend(header)
       tokens.append(("", "\n"))
+      tokens.extend(header_sep)
+      tokens.append(("", "  "))
+      tokens.extend(header_sep)
+      tokens.append(("", "\n"))
+    tokens.extend(left_rows[i])
+    tokens.append(("", "  "))
+    tokens.extend(right_rows[i])
+    if i != max_len - 1:
+      tokens.append(("", "\n"))
+
   return FormattedText(tokens)
 
 def ansi_color(text: str, color: str) -> str:

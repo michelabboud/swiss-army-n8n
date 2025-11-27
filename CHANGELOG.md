@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.26] – 2025-11-27
+
+### Changed
+
+- Prompt and Textual monitors render service tables in two columns while preserving compose order and profile grouping; headers stay wrapped.
+
 ## [0.1.25] – 2025-11-27
 
 ### Changed

@@ -23,7 +23,7 @@ import textwrap
 from rich.text import Text
 from textual import events
 from textual.app import App, ComposeResult
-from textual.containers import Vertical
+from textual.containers import Vertical, Horizontal
 from textual.reactive import reactive
 from textual.widgets import DataTable, Static
 
@@ -327,12 +327,17 @@ class MonitorApp(App):
 
   def compose(self) -> ComposeResult:
     self.header = Static(id="header")
-    self.table = DataTable(id="table", zebra_stripes=True)
-    yield Vertical(self.header, self.table)
+    self.table_left = DataTable(id="table_left", zebra_stripes=True)
+    self.table_right = DataTable(id="table_right", zebra_stripes=True)
+    yield Vertical(
+      self.header,
+      Horizontal(self.table_left, self.table_right),
+    )
 
   def on_mount(self) -> None:
-    self.table.clear(columns=True)
-    self.table.add_columns("Container", "Service", "State", "Health", "Errors", "Ports")
+    for tbl in (self.table_left, self.table_right):
+      tbl.clear(columns=True)
+      tbl.add_columns("Container", "Service", "State", "Health", "Errors", "Ports")
     self.set_interval(self.ctx.refresh, self.refresh_data)
     self.refresh_data()
 
@@ -507,29 +512,35 @@ class MonitorApp(App):
         last_group = group
       grouped_rows.append(r)
 
-    self.table.clear()
-    if not self.table.columns:
-      self.table.add_columns("Container", "Service", "State", "Health", "Errors", "Ports")
-    for r in grouped_rows:
-      if "group" in r:
-        self.table.add_row(
-          Text(f"[{r['group']}]", style="bold yellow"),
-          Text(""),
-          Text(""),
-          Text(""),
-          Text(""),
-          Text(""),
+    mid = (len(grouped_rows) + 1) // 2
+    left = grouped_rows[:mid]
+    right = grouped_rows[mid:]
+
+    for tbl in (self.table_left, self.table_right):
+      tbl.clear()
+
+    for idx, rows_side in enumerate((left, right)):
+      tbl = self.table_left if idx == 0 else self.table_right
+      for r in rows_side:
+        if "group" in r:
+          tbl.add_row(
+            Text(f"[{r['group']}]", style="bold yellow"),
+            Text(""),
+            Text(""),
+            Text(""),
+            Text(""),
+            Text(""),
+          )
+          continue
+        state_style, health_style, err_style, port_style = self._row_styles(r["state"], r["health"], r["errors"], r["ports"])
+        tbl.add_row(
+          Text(r["cid"]),
+          Text(r["service"]),
+          Text(r["state"], style=state_style),
+          Text(r["health"], style=health_style),
+          Text(r["errors"], style=err_style),
+          Text(r["ports"], style=port_style),
         )
-        continue
-      state_style, health_style, err_style, port_style = self._row_styles(r["state"], r["health"], r["errors"], r["ports"])
-      self.table.add_row(
-        Text(r["cid"]),
-        Text(r["service"]),
-        Text(r["state"], style=state_style),
-        Text(r["health"], style=health_style),
-        Text(r["errors"], style=err_style),
-        Text(r["ports"], style=port_style),
-      )
     self.last_refresh = now
 
   def on_key(self, event: events.Key) -> None:

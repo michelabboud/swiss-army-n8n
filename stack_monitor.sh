@@ -486,9 +486,8 @@ def render(rows, header_lines, tty):
   if not rows:
     print("No services to display.")
     return
-  cols = shutil.get_terminal_size((120, 40)).columns
   cid_w = 13
-  svc_w = max(12, min(28, max(visible_len(r["service_disp"]) for r in rows) + 2))
+  svc_w = max(12, min(28, max(visible_len(r.get("service_disp", "")) for r in rows if not r.get("is_group")) + 2))
   state_w = 14
   health_w = 12
   err_w = 12
@@ -501,13 +500,13 @@ def render(rows, header_lines, tty):
     f"{pad_field('Errors', err_w)}"
     f"{pad_field('Ports', port_w)}"
   )
-  print(header)
-  print("-" * min(cols, len(header)))
+  dash = "-" * len(header)
+  lines = [header, dash]
   for r in rows:
     if r.get("is_group"):
-      print(f"[{r['label']}]")
+      lines.append(f"[{r['label']}]")
       continue
-    print(
+    lines.append(
       f"{pad_field(r['cid_disp'], cid_w)}"
       f"{pad_field(r['service_disp'], svc_w)}"
       f"{pad_field(r['state_disp'], state_w)}"
@@ -515,6 +514,14 @@ def render(rows, header_lines, tty):
       f"{pad_field(r['errors_disp'], err_w)}"
       f"{pad_field(r['ports_disp'], port_w)}"
     )
+  mid = (len(lines) + 1) // 2
+  left = lines[:mid]
+  right = lines[mid:]
+  max_len = max(len(left), len(right))
+  left += [""] * (max_len - len(left))
+  right += [""] * (max_len - len(right))
+  for l, r in zip(left, right):
+    print(f"{l}   {r}")
   sys.stdout.flush()
 
 def build_ports_map(cfg):
