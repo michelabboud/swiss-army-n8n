@@ -277,8 +277,9 @@ def build_rows(ctx, log_cache, now):
     cid = get_container_id(ctx["base_cmd"], svc)
     if not cid:
       state = "down"
-      health = "n/a"
+      health = "-"
       err_txt = "-"
+      ports = "-"
     else:
       info = inspect_container(cid)
       state = info["status"]
@@ -295,9 +296,9 @@ def build_rows(ctx, log_cache, now):
         err_txt = "n/a"
       else:
         err_txt = str(err_cnt)
-    ports = "-"
-    if ctx["probe_ports_enabled"]:
-      ports = probe_ports(ctx["port_map"].get(svc, []))
+      ports = "-"
+      if ctx["probe_ports_enabled"]:
+        ports = probe_ports(ctx["port_map"].get(svc, []))
 
     rows.append(
       {

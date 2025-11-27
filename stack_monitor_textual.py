@@ -382,8 +382,9 @@ class MonitorApp(App):
       cid = get_container_id(self.ctx.base_cmd, svc)
       if not cid:
         state = "down"
-        health = "n/a"
+        health = "-"
         err_txt = "-"
+        ports = "-"
       else:
         info = inspect_container(cid)
         state = info["status"]
@@ -400,9 +401,9 @@ class MonitorApp(App):
           err_txt = "n/a"
         else:
           err_txt = str(err_cnt)
-      ports = "-"
-      if self.ctx.probe_ports_enabled:
-        ports = probe_ports(self.ctx.port_map.get(svc, []))
+        ports = "-"
+        if self.ctx.probe_ports_enabled:
+          ports = probe_ports(self.ctx.port_map.get(svc, []))
 
       rows.append(
         {

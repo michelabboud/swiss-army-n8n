@@ -592,8 +592,9 @@ def main():
       cid = get_container_id(base_cmd, svc)
       if not cid:
         state = "down"
-        health = "n/a"
+        health = "-"
         err_txt = "-"
+        ports = "-"
       else:
         info = inspect_container(cid)
         state = info["status"]
@@ -610,9 +611,9 @@ def main():
           err_txt = "n/a"
         else:
           err_txt = str(err_cnt)
-      ports = "-"
-      if probe_enabled:
-        ports = probe_ports(port_map.get(svc, []))
+        ports = "-"
+        if probe_enabled:
+          ports = probe_ports(port_map.get(svc, []))
       rows.append(
         {
           "service": svc,

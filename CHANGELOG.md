@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.16] – 2025-11-27
+
+### Changed
+
+- Monitors skip port probes, health/log sampling, and error counts when a service is down; only the state is shown. Applies to basic, prompt_toolkit, and Textual UIs.
+
 ## [0.1.15] – 2025-11-27
 
 ### Changed
