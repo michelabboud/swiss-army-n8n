@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 This project follows a loose semantic-style versioning for the **control script** and stack definition.
 
 ---
+## [0.1.31] – 2025-11-27
+
+### Fixed
+
+- Basic monitor pads lines before splitting into two columns, keeping profile headers on their own line without shifting services.
+
 ## [0.1.30] – 2025-11-27
 
 ### Fixed
