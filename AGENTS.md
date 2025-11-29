@@ -32,3 +32,4 @@
 - Keep credentials and tokens in `.env` (not committed). Rotate test credentials used in examples.
 - Map persistent volumes under `./data` by default and avoid reusing host paths that could shadow system directories.
 - If exposing services beyond localhost, review each container’s default credentials and tighten them before deployment.
+
