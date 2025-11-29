@@ -16,7 +16,7 @@ set -Eeuo pipefail
 # --- Defaults (overridden by metadata.json when possible) ---
 STACK_NAME_DEFAULT="Swiss Army Stack"
 STACK_SLUG_DEFAULT="swiss-army-stack"
-STACK_VERSION_DEFAULT="0.1.31"
+STACK_VERSION_DEFAULT="0.1.32"
 
 COMPOSE_FILE_DEFAULT="${COMPOSE_FILE_DEFAULT:-docker-compose.yml}"
 PROJECT_NAME_DEFAULT="${PROJECT_NAME_DEFAULT:-swiss-army-stack}"
@@ -40,6 +40,7 @@ COMPOSE_OVERRIDES=()
 RESTART_OVERRIDE_FILE=""
 RESTART_POLICY_DEFAULT="inherit"
 RESTART_POLICY_MODE="inherit"
+INFO_MODE=false
 
 # Colors (only if stdout is a TTY)
 if [[ -t 1 ]]; then
@@ -130,17 +131,19 @@ Usage:
   stackctl.sh <command> [options] [-- <extra docker compose args>]
 
 Commands:
-  start       Bring up services (docker compose up -d)
-  restart     Restart running services
-  stop        Stop services (docker compose stop)
-  rebuild     Rebuild images and restart (docker compose up --build -d)
-  clean       Tear down containers (and optionally volumes)
-  logs        Show logs (docker compose logs)
-  shell       Open an interactive shell in a single service container
-  info        Show stack and docker compose information
-  status      Show docker compose ps
-  health      Inspect containers: status, health, mounts
-  endpoints   Summarize externally mapped service ports (host -> container)
+  start           Bring up services (docker compose up -d)
+  list-services   List services (add --info for details)
+  list-profiles   List compose profiles (add --info for service grouping)
+  restart         Restart running services
+  stop            Stop services (docker compose stop)
+  rebuild         Rebuild images and restart (docker compose up --build -d)
+  clean           Tear down containers (and optionally volumes)
+  logs            Show logs (docker compose logs)
+  shell           Open an interactive shell in a single service container
+  info            Show stack and docker compose information
+  status          Show docker compose ps
+  health          Inspect containers: status, health, mounts
+  endpoints       Summarize externally mapped service ports (host -> container)
 
 Target selection:
   --all               Operate on all services (default)
@@ -154,6 +157,7 @@ Global options:
   --restart-policy MODE   Override restart policy: inherit|auto|manual|always|on-failure
                           (env: STACKCTL_RESTART_POLICY; default from metadata compose.default_restart_policy or STACKCTL_DEFAULT_RESTART_POLICY)
   --version               Show stack version (from metadata.json)
+  --info                  Show detailed output for list-services/list-profiles
   -h, --help              Show this help
 
 Examples:
@@ -465,6 +469,15 @@ ensure_command_set() {
   fi
 }
 
+fetch_compose_config_json() {
+  local cfg
+  if ! cfg=$(compose --no-log config --format json); then
+    warn "Failed to read compose config."
+    return 1
+  fi
+  printf '%s\n' "$cfg"
+}
+
 #############################################
 # Commands
 #############################################
@@ -680,6 +693,154 @@ cmd_endpoints() {
   print_endpoints "$filter"
 }
 
+cmd_list_services() {
+  log "Service list (mode: ${TARGET_MODE})..."
+  local cfg
+  if ! cfg=$(fetch_compose_config_json); then
+    return 1
+  fi
+
+  local py_script
+  if [[ "$INFO_MODE" == true ]]; then
+    py_script=$(cat <<'PY'
+import json, sys
+
+NULL_PROFILE = "*null-profile*"
+
+try:
+    data = json.load(sys.stdin)
+except Exception as e:
+    sys.stderr.write(f"Failed to parse compose config: {e}\n")
+    sys.exit(1)
+
+services = data.get("services") or {}
+if not services:
+    print("No services defined.")
+    sys.exit(0)
+
+rows = []
+for name, cfg in services.items():
+    profiles = cfg.get("profiles") or []
+    profile_label = ",".join(profiles) if profiles else NULL_PROFILE
+    image = cfg.get("image")
+    if image:
+        image_label = image
+    elif cfg.get("build"):
+        image_label = "(build only)"
+    else:
+        image_label = "(not specified)"
+    restart = cfg.get("restart") or "(default)"
+    rows.append((name, profile_label, image_label, restart))
+
+for name, profile_label, image_label, restart in sorted(rows, key=lambda x: x[0]):
+    print(f"- {name}")
+    print(f"  profiles: {profile_label}")
+    print(f"  image:    {image_label}")
+    print(f"  restart:  {restart}")
+PY
+)
+  else
+    py_script=$(cat <<'PY'
+import json, sys
+
+try:
+    data = json.load(sys.stdin)
+except Exception as e:
+    sys.stderr.write(f"Failed to parse compose config: {e}\n")
+    sys.exit(1)
+
+services = data.get("services") or {}
+if not services:
+    print("No services defined.")
+    sys.exit(0)
+
+for name in sorted(services):
+    print(f"- {name}")
+PY
+)
+  fi
+
+  python3 -c "$py_script" <<<"$cfg"
+}
+
+cmd_list_profiles() {
+  log "Profile list (mode: ${TARGET_MODE})..."
+  local cfg
+  if ! cfg=$(fetch_compose_config_json); then
+    return 1
+  fi
+
+  local -a _avail_profiles=()
+  mapfile -t _avail_profiles < <(available_profiles)
+
+  local py_script
+  if [[ "$INFO_MODE" == true ]]; then
+    py_script=$(cat <<'PY'
+import json, os, sys
+
+NULL_PROFILE = "*null-profile*"
+declared = set(filter(None, os.environ.get("STACKCTL_AVAILABLE_PROFILES", "").split()))
+
+try:
+    data = json.load(sys.stdin)
+except Exception as e:
+    sys.stderr.write(f"Failed to parse compose config: {e}\n")
+    sys.exit(1)
+
+services = data.get("services") or {}
+profile_map = {p: [] for p in declared}
+
+if services:
+    for name, cfg in services.items():
+        profiles = cfg.get("profiles") or [NULL_PROFILE]
+        for p in profiles:
+            profile_map.setdefault(p, []).append(name)
+else:
+    if declared:
+        profile_map = {p: [] for p in declared}
+
+if not profile_map:
+    print("No profiles found.")
+    sys.exit(0)
+
+for profile in sorted(profile_map):
+    services = ", ".join(sorted(profile_map[profile])) if profile_map[profile] else "(no services)"
+    print(f"- {profile}: {services}")
+PY
+)
+  else
+    py_script=$(cat <<'PY'
+import json, os, sys
+
+NULL_PROFILE = "*null-profile*"
+declared = set(filter(None, os.environ.get("STACKCTL_AVAILABLE_PROFILES", "").split()))
+
+try:
+    data = json.load(sys.stdin)
+except Exception as e:
+    sys.stderr.write(f"Failed to parse compose config: {e}\n")
+    sys.exit(1)
+
+services = data.get("services") or {}
+profiles = set(declared)
+if services:
+    for cfg in services.values():
+        profs = cfg.get("profiles") or [NULL_PROFILE]
+        profiles.update(profs)
+
+if not profiles:
+    print("No profiles found.")
+    sys.exit(0)
+
+for profile in sorted(profiles):
+    print(f"- {profile}")
+PY
+)
+  fi
+
+  STACKCTL_AVAILABLE_PROFILES="${_avail_profiles[*]}" python3 -c "$py_script" <<<"$cfg"
+}
+
 #############################################
 # Argument parsing
 #############################################
@@ -709,11 +870,15 @@ fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    start|restart|stop|rebuild|clean|logs|shell|info|status|health|endpoints)
+    start|restart|stop|rebuild|clean|logs|shell|info|status|health|endpoints|list-services|--list-services|list-profiles|--list-profiles)
       if [[ -n "$CMD" ]]; then
         error "Multiple commands specified."
       fi
-      CMD="$1"
+      case "$1" in
+        --list-services) CMD="list-services" ;;
+        --list-profiles) CMD="list-profiles" ;;
+        *) CMD="$1" ;;
+      esac
       shift
       ;;
     --profile)
@@ -770,6 +935,10 @@ while [[ $# -gt 0 ]]; do
       usage
       exit 0
       ;;
+    --info)
+      INFO_MODE=true
+      shift
+      ;;
     --)
       shift
       FORWARDED_ARGS=("$@")
@@ -795,6 +964,8 @@ case "$CMD" in
   status)  cmd_status  ;;
   health)  cmd_health  ;;
   endpoints) cmd_endpoints ;;
+  list-services) cmd_list_services ;;
+  list-profiles) cmd_list_profiles ;;
   *)       error "Unhandled command: $CMD" ;;
 esac
 

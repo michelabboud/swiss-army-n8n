@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.31",
+    "version": "0.1.32",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -15,10 +15,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.31",
-      "date": "2025-11-27",
-      "title": "Fix basic group alignment",
-      "summary": "Basic monitor pads lines before column split so profile headers don't collide with service rows; header wrapping stays intact."
+      "version": "0.1.32",
+      "date": "2025-11-30",
+      "title": "Add service/profile listings",
+      "summary": "stackctl now lists services and profiles (with optional info) and shows a tidier help layout."
     }
   }
 }
