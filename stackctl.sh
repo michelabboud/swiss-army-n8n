@@ -16,7 +16,7 @@ set -Eeuo pipefail
 # --- Defaults (overridden by metadata.json when possible) ---
 STACK_NAME_DEFAULT="Swiss Army Stack"
 STACK_SLUG_DEFAULT="swiss-army-stack"
-STACK_VERSION_DEFAULT="0.1.32"
+STACK_VERSION_DEFAULT="0.1.33"
 
 COMPOSE_FILE_DEFAULT="${COMPOSE_FILE_DEFAULT:-docker-compose.yml}"
 PROJECT_NAME_DEFAULT="${PROJECT_NAME_DEFAULT:-swiss-army-stack}"
@@ -41,6 +41,7 @@ RESTART_OVERRIDE_FILE=""
 RESTART_POLICY_DEFAULT="inherit"
 RESTART_POLICY_MODE="inherit"
 INFO_MODE=false
+SHOW_ALL_ENDPOINTS=false
 
 # Colors (only if stdout is a TTY)
 if [[ -t 1 ]]; then
@@ -687,8 +688,25 @@ cmd_endpoints() {
   log "Published endpoints (mode: ${TARGET_MODE})..."
 
   local filter=""
-  if [[ ${#SERVICES[@]} -gt 0 ]]; then
-    filter="${SERVICES[*]}"
+  if [[ "$SHOW_ALL_ENDPOINTS" == true ]]; then
+    if [[ ${#SERVICES[@]} -gt 0 ]]; then
+      filter="${SERVICES[*]}"
+    fi
+  else
+    local running
+    local -a ps_args=(--filter status=running --services)
+    if [[ ${#SERVICES[@]} -gt 0 ]]; then
+      ps_args+=("${SERVICES[@]}")
+    fi
+    if ! running=$(compose --no-log ps "${ps_args[@]}"); then
+      warn "Failed to list running services."
+      return 1
+    fi
+    if [[ -z "$running" ]]; then
+      warn "No running services found; use --all to show every endpoint."
+      return 0
+    fi
+    filter="$running"
   fi
   print_endpoints "$filter"
 }
@@ -900,6 +918,7 @@ while [[ $# -gt 0 ]]; do
         error "--all cannot be combined with --profile/--service"
       fi
       TARGET_MODE="all"
+      SHOW_ALL_ENDPOINTS=true
       shift
       ;;
     -f|--file)
