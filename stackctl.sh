@@ -16,7 +16,7 @@ set -Eeuo pipefail
 # --- Defaults (overridden by metadata.json when possible) ---
 STACK_NAME_DEFAULT="Swiss Army Stack"
 STACK_SLUG_DEFAULT="swiss-army-stack"
-STACK_VERSION_DEFAULT="0.1.33"
+STACK_VERSION_DEFAULT="0.1.34"
 
 COMPOSE_FILE_DEFAULT="${COMPOSE_FILE_DEFAULT:-docker-compose.yml}"
 PROJECT_NAME_DEFAULT="${PROJECT_NAME_DEFAULT:-swiss-army-stack}"
@@ -479,6 +479,22 @@ fetch_compose_config_json() {
   printf '%s\n' "$cfg"
 }
 
+list_compose_services() {
+  local cfg
+  if ! cfg=$(fetch_compose_config_json); then
+    return 1
+  fi
+  python3 -c 'import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception as e:
+    sys.stderr.write(f"Failed to parse compose config: {e}\n")
+    sys.exit(1)
+for name in sorted(data.get("services") or {}):
+    print(name)
+' <<<"$cfg"
+}
+
 #############################################
 # Commands
 #############################################
@@ -692,23 +708,59 @@ cmd_endpoints() {
     if [[ ${#SERVICES[@]} -gt 0 ]]; then
       filter="${SERVICES[*]}"
     fi
+    print_endpoints "$filter"
+    return 0
   else
-    local running
-    local -a ps_args=(--filter status=running --services)
-    if [[ ${#SERVICES[@]} -gt 0 ]]; then
-      ps_args+=("${SERVICES[@]}")
-    fi
-    if ! running=$(compose --no-log ps "${ps_args[@]}"); then
-      warn "Failed to list running services."
+    local -a compose_services=()
+    if ! mapfile -t compose_services < <(list_compose_services); then
+      warn "Failed to list compose services."
       return 1
     fi
-    if [[ -z "$running" ]]; then
-      warn "No running services found; use --all to show every endpoint."
+    local -A compose_set=()
+    for svc in "${compose_services[@]}"; do
+      compose_set["$svc"]=1
+    done
+
+    local -A selected_map=()
+    if [[ ${#SERVICES[@]} -gt 0 ]]; then
+      for want in "${SERVICES[@]}"; do
+        selected_map["$want"]=1
+      done
+    fi
+
+    local -a running_lines=()
+    mapfile -t running_lines < <(docker ps --filter status=running --format '{{.ID}} {{.Label "com.docker.compose.service"}}' 2>/dev/null | sed '/^$/d')
+
+    local any=false
+    for line in "${running_lines[@]}"; do
+      local cid svc
+      cid=${line%% *}
+      svc=${line#* }
+      [[ -z "$svc" ]] && continue
+      [[ -z "${compose_set[$svc]:-}" ]] && continue
+      if [[ ${#selected_map[@]} -gt 0 && -z "${selected_map[$svc]:-}" ]]; then
+        continue
+      fi
+      any=true
+      echo "$svc"
+      local ports
+      ports=$(docker port "$cid" 2>/dev/null || true)
+      if [[ -z "$ports" ]]; then
+        echo "  (no published ports)"
+      else
+        while IFS= read -r p; do
+          [[ -z "$p" ]] && continue
+          echo "  $p"
+        done <<<"$ports"
+      fi
+    done
+
+    if [[ "$any" == false ]]; then
+      warn "No running services found for this compose; use --all to show every endpoint or pass --project-name if you used a different compose project."
       return 0
     fi
-    filter="$running"
+    return 0
   fi
-  print_endpoints "$filter"
 }
 
 cmd_list_services() {
