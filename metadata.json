@@ -2,7 +2,7 @@
   "stack": {
     "name": "Swiss Army Stack",
     "slug": "swiss-army-stack",
-    "version": "0.1.34",
+    "version": "0.1.36",
     "description": "Local backend lab with n8n orchestrator, databases, messaging, storage, media, search, auth, monitoring and AI services."
   },
   "compose": {
@@ -15,10 +15,10 @@
   },
   "changelog": {
     "last": {
-      "version": "0.1.34",
+      "version": "0.1.36",
       "date": "2025-11-30",
-      "title": "Detect running endpoints across compose projects",
-      "summary": "Endpoints now match running containers by compose service label (regardless of project name) and advise using --all or --project-name when nothing is running."
+      "title": "Use compose stats + labels for endpoints",
+      "summary": "Endpoints now gather running containers via docker compose stats when available, fall back to docker ps, and resolve service names from compose labels so running endpoints always show even if the project name differs."
     }
   }
 }

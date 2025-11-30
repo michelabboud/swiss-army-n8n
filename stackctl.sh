@@ -16,7 +16,7 @@ set -Eeuo pipefail
 # --- Defaults (overridden by metadata.json when possible) ---
 STACK_NAME_DEFAULT="Swiss Army Stack"
 STACK_SLUG_DEFAULT="swiss-army-stack"
-STACK_VERSION_DEFAULT="0.1.34"
+STACK_VERSION_DEFAULT="0.1.36"
 
 COMPOSE_FILE_DEFAULT="${COMPOSE_FILE_DEFAULT:-docker-compose.yml}"
 PROJECT_NAME_DEFAULT="${PROJECT_NAME_DEFAULT:-swiss-army-stack}"
@@ -728,14 +728,19 @@ cmd_endpoints() {
       done
     fi
 
-    local -a running_lines=()
-    mapfile -t running_lines < <(docker ps --filter status=running --format '{{.ID}} {{.Label "com.docker.compose.service"}}' 2>/dev/null | sed '/^$/d')
+    local -a running_containers=()
+    # Prefer compose stats (running only); fall back to docker ps if unavailable.
+    if ! mapfile -t running_containers < <(compose --no-log stats --no-stream --format '{{.Name}}' 2>/dev/null | sed '/^$/d'); then
+      running_containers=()
+    fi
+    if [[ ${#running_containers[@]} -eq 0 ]]; then
+      mapfile -t running_containers < <(docker ps --filter status=running --format '{{.Names}}' 2>/dev/null | sed '/^$/d')
+    fi
 
     local any=false
-    for line in "${running_lines[@]}"; do
-      local cid svc
-      cid=${line%% *}
-      svc=${line#* }
+    for cname in "${running_containers[@]}"; do
+      local svc
+      svc=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.service"}}' "$cname" 2>/dev/null || true)
       [[ -z "$svc" ]] && continue
       [[ -z "${compose_set[$svc]:-}" ]] && continue
       if [[ ${#selected_map[@]} -gt 0 && -z "${selected_map[$svc]:-}" ]]; then
@@ -744,7 +749,7 @@ cmd_endpoints() {
       any=true
       echo "$svc"
       local ports
-      ports=$(docker port "$cid" 2>/dev/null || true)
+      ports=$(docker port "$cname" 2>/dev/null || true)
       if [[ -z "$ports" ]]; then
         echo "  (no published ports)"
       else
@@ -760,6 +765,7 @@ cmd_endpoints() {
       return 0
     fi
     return 0
+
   fi
 }
 
